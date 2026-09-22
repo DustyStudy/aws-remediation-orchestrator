@@ -151,6 +151,15 @@ resource "aws_iam_role_policy" "guardduty_credentials_automation" {
     Version = "2012-10-17"
     Statement = [
       {
+        # The IAM user isn't known until the automation runs (it's parsed
+        # from the finding at execution time), so this can't be scoped
+        # tighter than the resource type - same constraint as the S3
+        # automation role's PutBucketPublicAccessBlock above. The blast
+        # radius this grants (deactivating any IAM user's access keys) is
+        # bounded by who can reach this role: it's assumable only by
+        # ssm.amazonaws.com, only via this document, and this playbook's
+        # seeded mode is approval_required, so a human confirms the target
+        # before it ever runs.
         Effect   = "Allow"
         Action   = ["iam:ListAccessKeys", "iam:UpdateAccessKey", "iam:TagUser"]
         Resource = "${local.arn_prefix}:iam::${local.account_id}:user/*"
