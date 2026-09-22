@@ -23,3 +23,12 @@ updates:
     labels:
       - "dependencies"
       - "python"
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "terraform"
