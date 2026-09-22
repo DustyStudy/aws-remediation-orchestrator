@@ -1,0 +1,48 @@
+# Copy to terraform.tfvars and adjust before applying.
+#
+# match_field/match_value are illustrative starting points, not guaranteed
+# ASFF strings - Security Hub's exact Types/GeneratorId values for a given
+# finding depend on which product (GuardDuty, Config, a specific control)
+# produced it. Before relying on a rule, confirm the real value with:
+#
+#   aws securityhub get-findings --max-results 5 \
+#     --filters '{"GeneratorId":[{"Value":"<substring>","Comparison":"CONTAINS"}]}'
+#
+# See docs/POLICY_REGISTRY.md for the full schema and more examples,
+# including how to point action_document at a playbook owned by another
+# deployment (e.g. aws-cloud-security-toolbox) via external_ssm_document_arns.
+
+notification_email = "security-team@example.com"
+
+policy_registry_seed = {
+  default = {
+    match_field  = "type_prefix"
+    match_value  = ""
+    mode         = "dry_run"
+    description  = "Fallback when nothing more specific matches. Dry-run so an unrecognized finding is logged, never silently auto-remediated."
+  }
+
+  s3-public-access = {
+    match_field           = "type_prefix"
+    match_value           = "Software and Configuration Checks/S3"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-S3PublicAccessRemediation"
+    action_document_owner = "self"
+    nist_controls         = ["AC-3", "SC-28"]
+    max_actions_per_hour  = 20
+    severity_threshold    = "MEDIUM"
+    description           = "Re-applies S3 Block Public Access. Safe to run automatically - idempotent, can only reduce exposure."
+  }
+
+  guardduty-compromised-credentials = {
+    match_field           = "type_prefix"
+    match_value           = "Unusual Behaviors/User"
+    mode                  = "approval_required"
+    action_document       = "remediation-orchestrator-DisableCompromisedCredentials"
+    action_document_owner = "self"
+    nist_controls         = ["AC-2", "IR-4"]
+    max_actions_per_hour  = 5
+    severity_threshold    = "HIGH"
+    description           = "Deactivates an IAM user's access keys. Disruptive if the finding is a false positive, so a human confirms first."
+  }
+}
