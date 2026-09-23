@@ -32,6 +32,15 @@ resource "aws_dynamodb_table_item" "policy_registry_seed" {
   table_name = aws_dynamodb_table.policy_registry.name
   hash_key   = aws_dynamodb_table.policy_registry.hash_key
 
+  # severity_threshold is round-tripped through jsonencode/jsondecode rather
+  # than written as a plain `? {NULL=true} : {S=...}` conditional: HCL
+  # unifies the two branches' object types, and an object with a NULL/bool
+  # attribute unified against one with an S/string attribute coerces the
+  # bool to the string "true" - which DynamoDB then rejects ("unexpected
+  # raw attribute type (string) for data type descriptor: NULL"). Routing
+  # both branches through JSON first keeps them as plain strings for the
+  # ternary, so no unification happens before the value reaches DynamoDB's
+  # native JSON shape. See docs/PROOF.md.
   item = jsonencode({
     match_id              = { S = each.key }
     match_field           = { S = each.value.match_field }
@@ -41,8 +50,12 @@ resource "aws_dynamodb_table_item" "policy_registry_seed" {
     action_document_owner = { S = each.value.action_document_owner }
     nist_controls         = { L = [for c in each.value.nist_controls : { S = c }] }
     max_actions_per_hour  = { N = tostring(each.value.max_actions_per_hour) }
-    severity_threshold    = each.value.severity_threshold == null ? { NULL = true } : { S = each.value.severity_threshold }
-    description           = { S = each.value.description }
+    severity_threshold = jsondecode(
+      each.value.severity_threshold == null
+      ? jsonencode({ NULL = true })
+      : jsonencode({ S = each.value.severity_threshold })
+    )
+    description = { S = each.value.description }
   })
 }
 

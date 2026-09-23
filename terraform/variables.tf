@@ -82,6 +82,25 @@ variable "lambda_log_retention_days" {
   default     = 365
 }
 
+variable "enable_lambda_reserved_concurrency" {
+  type        = bool
+  description = <<-EOT
+    Whether to set reserved_concurrent_executions on this module's Lambda
+    functions. The defaults (10-20 per function, ~130 total) assume an
+    account with normal Lambda concurrency headroom (the standard 1,000
+    unreserved default). A newly created account can start with an
+    account-wide concurrency limit as low as 10, in which case reserving
+    concurrency on even one function leaves less than the minimum
+    unreserved amount AWS requires and every aws_lambda_function apply
+    fails with "decreases account's UnreservedConcurrentExecution below
+    its minimum value". Set to false to deploy unreserved (relying on the
+    account's shared pool) until a quota increase is granted, or in a
+    throwaway test account where per-function isolation doesn't matter.
+    See docs/PROOF.md.
+  EOT
+  default     = true
+}
+
 variable "tags" {
   type        = map(string)
   description = "Additional tags applied to every resource this module creates."

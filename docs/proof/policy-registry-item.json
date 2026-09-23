@@ -1,0 +1,13 @@
+{
+  "note": "aws dynamodb scan of the policy_registry table's 'default' item after terraform apply, showing severity_threshold stored as a native DynamoDB NULL - not the string \"true\" the pre-fix dynamodb.tf would have produced (see bug #1 in docs/PROOF.md).",
+  "match_id": { "S": "default" },
+  "match_field": { "S": "type_prefix" },
+  "match_value": { "S": "" },
+  "mode": { "S": "dry_run" },
+  "action_document": { "S": "" },
+  "action_document_owner": { "S": "self" },
+  "max_actions_per_hour": { "N": "10" },
+  "severity_threshold": { "NULL": true },
+  "description": { "S": "Fallback when nothing more specific matches. Dry-run so an unrecognized finding is logged, never silently auto-remediated." },
+  "nist_controls": { "L": [] }
+}

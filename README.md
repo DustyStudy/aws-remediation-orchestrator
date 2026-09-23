@@ -82,6 +82,13 @@ ruff check terraform tests
 CI (`.github/workflows/lint-and-scan.yml`) runs pytest/ruff, plus
 `terraform fmt`/`validate`/`tflint`/Checkov, on every push and PR.
 
+## Proof
+
+Deployed for real, fed real findings, and carried through a real human
+approve/deny click - found and fixed four bugs along the way, including one
+that silently broke every approval decision. See
+[`docs/PROOF.md`](docs/PROOF.md).
+
 ## Repository layout
 
 ```

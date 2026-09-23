@@ -61,7 +61,7 @@ resource "aws_lambda_function" "normalize_finding" {
   runtime                        = "python3.12"
   timeout                        = 15
   memory_size                    = 128
-  reserved_concurrent_executions = 20
+  reserved_concurrent_executions = var.enable_lambda_reserved_concurrency ? 20 : null
   filename                       = data.archive_file.normalize_finding.output_path
   source_code_hash               = data.archive_file.normalize_finding.output_base64sha256
   kms_key_arn                    = aws_kms_key.lambda.arn

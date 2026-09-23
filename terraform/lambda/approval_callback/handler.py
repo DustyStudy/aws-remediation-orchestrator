@@ -64,10 +64,18 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         return _response(410, "This approval request has expired.")
 
     try:
+        # "consumed" is a DynamoDB reserved keyword (see the reserved-words
+        # list); referencing it bare in an expression fails at parse time
+        # with "Attribute name is a reserved keyword", not at the
+        # condition-check step - so this always raised ValidationException,
+        # never ConditionalCheckFailedException, and no approve/deny click
+        # ever actually resolved a pending approval. Found by clicking a
+        # real link end to end; see docs/PROOF.md.
         table.update_item(
             Key={"approval_id": approval_id},
-            UpdateExpression="SET consumed = :true",
-            ConditionExpression="consumed = :false",
+            UpdateExpression="SET #consumed = :true",
+            ConditionExpression="#consumed = :false",
+            ExpressionAttributeNames={"#consumed": "consumed"},
             ExpressionAttributeValues={":true": True, ":false": False},
         )
     except _dynamodb.meta.client.exceptions.ConditionalCheckFailedException:

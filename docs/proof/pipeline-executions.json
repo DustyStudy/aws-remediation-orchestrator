@@ -1,0 +1,50 @@
+{
+  "note": "Three real Step Functions executions, triggered by real Security Hub 'Findings - Imported' EventBridge events from real (GuardDuty-sample) findings - not fabricated state machine input. Account ID masked.",
+  "execution_1_dry_run_high_severity": {
+    "trigger": "GuardDuty sample finding, type UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS",
+    "observed_asff_types": ["Effects/Data Exfiltration/UnauthorizedAccess:IAMUser-InstanceCredentialExfiltration.OutsideAWS"],
+    "observed_severity": "HIGH",
+    "status": "SUCCEEDED",
+    "ledger_item": {
+      "policy_id": "default",
+      "mode": "dry_run",
+      "outcome": "dry_run",
+      "decided_by": "system",
+      "guardrail_allowed": true
+    }
+  },
+  "execution_2_dry_run_low_severity": {
+    "trigger": "GuardDuty sample finding, type Policy:IAMUser/RootCredentialUsage",
+    "observed_asff_types": ["TTPs/Policy:IAMUser-RootCredentialUsage"],
+    "observed_severity": "LOW",
+    "status": "SUCCEEDED",
+    "ledger_item": {
+      "policy_id": "default",
+      "mode": "dry_run",
+      "outcome": "dry_run",
+      "decided_by": "system",
+      "guardrail_allowed": true
+    },
+    "note": "Neither this nor execution 1's real ASFF Types matched the tfvars.example's guardduty-compromised-credentials match_value (\"Unusual Behaviors/User\") - both fell through to the default fallback. This confirms, with real findings, the caveat POLICY_REGISTRY.md and terraform.tfvars.example already state: 'match_field/match_value are illustrative starting points, not guaranteed ASFF strings.'"
+  },
+  "execution_3_approval_required": {
+    "setup": "Break-glass DynamoDB edit (documented in POLICY_REGISTRY.md) changed guardduty-compromised-credentials' match_value to the real observed prefix 'Effects/Data Exfiltration' so a fresh sample finding of the same HIGH-severity type would match it instead of default.",
+    "trigger": "Second GuardDuty sample finding, same type as execution 1 (GuardDuty updates/re-emits the existing finding; Security Hub still emits an Imported/Updated event)",
+    "status_after_match": "RUNNING (Step Functions task paused on WaitForTaskToken, per approval_required design)",
+    "pending_approval_record_before_click": { "consumed": false },
+    "first_click_result": "Lambda raised ValidationException (see bugs-found in docs/PROOF.md #4) - task token was never resolved, execution stayed RUNNING. Pending-approval record still unconsumed.",
+    "fix_deployed": "terraform apply of the corrected approval_callback Lambda only (0 added, 2 changed, 0 destroyed)",
+    "second_click_result_after_fix": {
+      "status": "SUCCEEDED",
+      "pending_approval_record": { "consumed": true },
+      "ledger_item": {
+        "policy_id": "guardduty-compromised-credentials",
+        "mode": "approval_required",
+        "outcome": "denied",
+        "decided_by": "human (approval link)",
+        "guardrail_allowed": true
+      }
+    },
+    "note": "Deny was chosen deliberately over approve, since approving would have invoked the real DisableCompromisedCredentials SSM document against the sample finding's (fake) principal. The deny path exercises the same task-token resolution and ledger-recording code as approve; it does not exercise execute_remediation's SSM invocation itself - see docs/PROOF.md section 3."
+  }
+}

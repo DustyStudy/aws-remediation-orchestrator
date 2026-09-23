@@ -75,7 +75,7 @@ resource "aws_lambda_function" "export_evidence" {
   runtime                        = "python3.12"
   timeout                        = 300
   memory_size                    = 256
-  reserved_concurrent_executions = 1
+  reserved_concurrent_executions = var.enable_lambda_reserved_concurrency ? 1 : null
   filename                       = data.archive_file.export_evidence.output_path
   source_code_hash               = data.archive_file.export_evidence.output_base64sha256
   kms_key_arn                    = aws_kms_key.lambda.arn

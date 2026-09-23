@@ -75,7 +75,7 @@ resource "aws_lambda_function" "approval_callback" {
   runtime                        = "python3.12"
   timeout                        = 15
   memory_size                    = 128
-  reserved_concurrent_executions = 10
+  reserved_concurrent_executions = var.enable_lambda_reserved_concurrency ? 10 : null
   filename                       = data.archive_file.approval_callback.output_path
   source_code_hash               = data.archive_file.approval_callback.output_base64sha256
   kms_key_arn                    = aws_kms_key.lambda.arn

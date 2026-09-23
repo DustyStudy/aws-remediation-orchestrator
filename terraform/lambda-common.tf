@@ -21,6 +21,14 @@ resource "aws_kms_key" "lambda" {
         Resource  = "*"
       },
       {
+        # Every user of this key's log group path, so CloudWatch Logs'
+        # encryption-context condition actually matches all of them: each
+        # Lambda's own /aws/lambda/* log group, the Step Functions state
+        # machine's log group (/aws/vendedlogs/states/, not /aws/lambda/),
+        # and the API Gateway access-log group (/aws/apigateway/). Missing
+        # any one of these fails that resource's CreateLogGroup with "The
+        # specified KMS key does not exist or is not allowed to be used" -
+        # found by applying this module for real. See docs/PROOF.md.
         Sid       = "AllowCloudWatchLogsUseOfKey"
         Effect    = "Allow"
         Principal = { Service = "logs.${local.region}.amazonaws.com" }
@@ -34,7 +42,11 @@ resource "aws_kms_key" "lambda" {
         Resource = "*"
         Condition = {
           ArnLike = {
-            "kms:EncryptionContext:aws:logs:arn" = "${local.arn_prefix}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.name_prefix}-*"
+            "kms:EncryptionContext:aws:logs:arn" = [
+              "${local.arn_prefix}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.name_prefix}-*",
+              "${local.arn_prefix}:logs:${local.region}:${local.account_id}:log-group:/aws/vendedlogs/states/${local.name_prefix}",
+              "${local.arn_prefix}:logs:${local.region}:${local.account_id}:log-group:/aws/apigateway/${local.name_prefix}-*",
+            ]
           }
         }
       },
