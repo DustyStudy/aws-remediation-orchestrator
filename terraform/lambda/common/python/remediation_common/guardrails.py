@@ -97,7 +97,9 @@ def check_rate_limit(
 
 
 def check_resource_denylist(tagging_client: Any, resource_arn: str) -> GuardrailResult:
-    if not resource_arn:
+    # Third-party findings (Wiz, for one) can name a resource by an id that
+    # isn't an ARN, and the tagging API rejects those outright.
+    if not resource_arn.startswith("arn:"):
         return GuardrailResult(allowed=True)
     response = tagging_client.get_resources(ResourceARNList=[resource_arn])
     for mapping in response.get("ResourceTagMappingList", []):

@@ -22,39 +22,21 @@ runs in both AWS commercial and GovCloud.
   missed, including an approval callback that could never succeed. All 4 are
   fixed, and the proof doc lists what the run did not cover.
 
-## Why this exists, and how it relates to aws-cloud-security-toolbox
+## Why this exists
 
-[`aws-cloud-security-toolbox`](https://github.com/DustyStudy/aws-cloud-security-toolbox)
-is a library of independent remediation templates: each one detects and
-fixes one specific thing, deployed standalone, with no shared policy
-layer, approval gate, or audit trail across playbooks.
+Standalone auto-remediation scripts each detect and fix one thing, with
+no shared policy layer, approval gate, or audit trail across them.
 
-This repo is the governance layer above that. Every Security Hub finding
-flows through one pipeline, where a **policy registry** - not each
-playbook's own code - decides whether a match runs automatically, waits
-for a human, only logs what it would do, or is ignored entirely; a
-**circuit breaker and per-policy rate limit** cap how much damage a
-misconfigured detector (or this system itself) can do; and every
-decision - acted on or not - lands in an **audit ledger** that exports as
-compliance evidence. It owns two playbooks directly and can dispatch to
-a playbook owned by another deployment (including the toolbox's own) via
+This repo puts every Security Hub finding through one pipeline instead.
+A **policy registry**, not each playbook's own code, decides whether a
+match runs automatically, waits for a human, only logs what it would do,
+or is ignored. A **circuit breaker and per-policy rate limit** cap how
+much damage a misconfigured detector (or this system itself) can do.
+Every decision, acted on or not, lands in an **audit ledger** that
+exports as compliance evidence. It ships five playbooks and can dispatch
+to a playbook owned by another deployment via
 `external_ssm_document_arns`. See
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full picture.
-
-## Architecture
-
-```
-Security Hub finding
-        │
-        ▼
-EventBridge  ──▶  Step Functions (normalize → match policy → check
-                   guardrails → route by mode → execute/approve/dry-run)
-                        │
-                        ▼
-              DynamoDB audit ledger  ──(scheduled)──▶  S3 compliance evidence
-```
-
-Full diagram, state-by-state, in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## What's in the box
 
@@ -66,7 +48,22 @@ Full diagram, state-by-state, in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
 | **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, or failed - with the guardrail result and NIST control mapping that produced it. |
 | **Evidence export** (S3, scheduled) | Rolls the ledger up into [`grc-evidence-automation`](https://github.com/DustyStudy/grc-evidence-automation)-shaped JSON documents. See [`docs/EVIDENCE_SCHEMA.md`](docs/EVIDENCE_SCHEMA.md). |
-| **Two owned playbooks** | `S3PublicAccessRemediation` (auto: re-applies Block Public Access) and `DisableCompromisedCredentials` (approval-required: deactivates an IAM user's active access keys on a GuardDuty finding). |
+| **Five owned playbooks** | See [Playbooks](#playbooks). |
+| **Wiz intake (optional)** | `enable_wiz_finding_bridge = true` deploys a webhook endpoint that imports Wiz findings into Security Hub, so they enter the same pipeline. See [`terraform/modules/wiz-finding-bridge`](terraform/modules/wiz-finding-bridge/README.md). |
+
+### Playbooks
+
+Each is an SSM Automation document this repo owns. Point a policy item's
+`action_document` at the name from the `playbook_document_names` output.
+The suggested mode is what `terraform.tfvars.example` seeds.
+
+| Playbook | What it does | Suggested mode |
+|---|---|---|
+| `S3PublicAccessRemediation` | Re-applies S3 Block Public Access on the bucket. | `auto` |
+| `RevokeOpenSshRdpIngress` | Revokes security group rules that open 22 or 3389 to `0.0.0.0/0` or `::/0`. Narrower rules stay. | `auto` |
+| `DisableCompromisedCredentials` | Deactivates every active access key of the IAM user in a GuardDuty finding. | `approval_required` |
+| `DeactivateStaleAccessKeys` | Deactivates only the user's keys older than 90 days or unused for 45 (Security Hub IAM.3 / IAM.22). | `approval_required` |
+| `IsolateCompromisedInstance` | Snapshots the instance's volumes, then moves every network interface to a per-VPC isolation security group with no inbound or outbound rules. Can also stop it. | `approval_required` |
 
 ## Deploying
 
@@ -86,7 +83,7 @@ the EventBridge rule to receive anything.
 
 ```bash
 pip install -r requirements-dev.txt
-pytest tests/ -q          # unit tests for the shared remediation_common package
+pytest tests/ -q          # remediation_common, playbook scripts, Wiz bridge
 ruff check terraform tests
 ```
 
@@ -110,14 +107,16 @@ aws-remediation-orchestrator/
 │   │   ├── normalize_finding/  lookup_policy/  check_guardrails/
 │   │   ├── request_approval/   approval_callback/  execute_remediation/
 │   │   └── record_ledger/      export_evidence/
-│   ├── ssm-documents/           # the two playbooks this repo owns + their inline scripts
+│   ├── ssm-documents*.tf        # the five playbooks this repo owns
+│   ├── ssm-documents/scripts/   # their inline aws:executeScript steps
+│   ├── modules/wiz-finding-bridge/  # optional Wiz webhook intake
 │   ├── stepfunctions.tf         # the state machine definition
 │   ├── eventbridge.tf           # Security Hub ingestion
 │   ├── api-gateway.tf           # approval callback endpoint
 │   ├── dynamodb.tf              # policy registry, rate limits, pending approvals, ledger
 │   ├── kms-data.tf / lambda-common.tf / secrets.tf / s3.tf / ssm-parameter.tf
 │   └── terraform.tfvars.example
-├── tests/                       # pytest unit tests for remediation_common
+├── tests/                       # pytest unit tests
 └── docs/
     ├── ARCHITECTURE.md
     ├── POLICY_REGISTRY.md

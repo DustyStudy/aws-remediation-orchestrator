@@ -68,33 +68,33 @@ ledger for review, never silently dropped or silently acted on.
 Set `action_document` to the full document name and add its ARN to
 `var.external_ssm_document_arns` - that's what grants
 `execute_remediation`'s IAM role permission to start it. For example, to
-route open-SSH/RDP findings to `aws-cloud-security-toolbox`'s existing
-`auto-remediate-open-ssh-rdp` playbook instead of building a new one:
+route a finding to a document another team already maintains:
 
 ```hcl
 external_ssm_document_arns = [
-  "arn:aws:ssm:us-east-1:123456789012:document/auto-remediate-open-ssh-rdp-RevokeOpenIngress",
+  "arn:aws:ssm:us-east-1:123456789012:document/platform-team-RotateTlsCertificate",
 ]
 
 policy_registry_seed = {
-  # ... default, s3-public-access, guardduty-compromised-credentials ...
+  # ... default and the other seeded policies ...
 
-  open-ssh-rdp = {
-    match_field           = "type_prefix"
-    match_value           = "Software and Configuration Checks/Network Reachability"
-    mode                  = "auto"
-    action_document       = "auto-remediate-open-ssh-rdp-RevokeOpenIngress"
+  expiring-certificate = {
+    match_field           = "generator_id"
+    match_value           = "security-control/ACM.1"
+    mode                  = "approval_required"
+    action_document       = "platform-team-RotateTlsCertificate"
     action_document_owner = "external"
-    nist_controls         = ["SC-7"]
-    max_actions_per_hour  = 20
+    nist_controls         = ["SC-12"]
+    max_actions_per_hour  = 5
     severity_threshold    = "MEDIUM"
-    description           = "Dispatches to aws-cloud-security-toolbox's existing SSH/RDP revocation playbook instead of duplicating it here."
+    description           = "Dispatches to the platform team's certificate rotation document instead of duplicating it here."
   }
 }
 ```
 
 `execute_remediation`'s parameter mapping
 (`terraform/lambda/execute_remediation/handler.py`, `_document_parameters`)
-currently only special-cases the two documents this repo ships; an
-external document with a different parameter contract than
-`ResourceArn`/`FindingId` needs its own branch added there.
+passes `ResourceArn` and `FindingId` to every document (plus
+`AccountId` for `DisableCompromisedCredentials`). The documents this repo
+ships give every other parameter a default. An external document with a
+different parameter contract needs its own branch added there.

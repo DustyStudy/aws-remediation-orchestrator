@@ -10,7 +10,7 @@
 #
 # See docs/POLICY_REGISTRY.md for the full schema and more examples,
 # including how to point action_document at a playbook owned by another
-# deployment (e.g. aws-cloud-security-toolbox) via external_ssm_document_arns.
+# deployment via external_ssm_document_arns.
 
 notification_email = "security-team@example.com"
 
@@ -45,4 +45,58 @@ policy_registry_seed = {
     severity_threshold    = "HIGH"
     description           = "Deactivates an IAM user's access keys. Disruptive if the finding is a false positive, so a human confirms first."
   }
+
+  # Security Hub controls EC2.13 (port 22) and EC2.14 (port 3389).
+  open-ssh = {
+    match_field           = "generator_id"
+    match_value           = "security-control/EC2.13"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
+    action_document_owner = "self"
+    nist_controls         = ["SC-7", "AC-4"]
+    max_actions_per_hour  = 20
+    severity_threshold    = "MEDIUM"
+    description           = "Revokes internet-wide SSH ingress. Safe to run automatically - only removes 0.0.0.0/0 and ::/0 rules on 22/3389."
+  }
+
+  open-rdp = {
+    match_field           = "generator_id"
+    match_value           = "security-control/EC2.14"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
+    action_document_owner = "self"
+    nist_controls         = ["SC-7", "AC-4"]
+    max_actions_per_hour  = 20
+    severity_threshold    = "MEDIUM"
+    description           = "Revokes internet-wide RDP ingress. Same playbook as open-ssh."
+  }
+
+  # Security Hub control IAM.3 (keys not rotated in 90 days).
+  stale-access-keys = {
+    match_field           = "generator_id"
+    match_value           = "security-control/IAM.3"
+    mode                  = "approval_required"
+    action_document       = "remediation-orchestrator-DeactivateStaleAccessKeys"
+    action_document_owner = "self"
+    nist_controls         = ["IA-5(1)", "AC-2(3)"]
+    max_actions_per_hour  = 10
+    severity_threshold    = "MEDIUM"
+    description           = "Deactivates only the user's stale keys. An old key can still be in use, so a human confirms first."
+  }
+
+  guardduty-compromised-instance = {
+    match_field           = "type_prefix"
+    match_value           = "TTPs/Command and Control"
+    mode                  = "approval_required"
+    action_document       = "remediation-orchestrator-IsolateCompromisedInstance"
+    action_document_owner = "self"
+    nist_controls         = ["IR-4", "SC-7"]
+    max_actions_per_hour  = 5
+    severity_threshold    = "HIGH"
+    description           = "Snapshots and network-isolates the instance. An outage if the finding is wrong, so a human confirms first."
+  }
 }
+
+# Optional: import Wiz findings through a webhook endpoint. They arrive
+# with generator_id "wiz/<title>". See terraform/modules/wiz-finding-bridge.
+# enable_wiz_finding_bridge = true

@@ -2,11 +2,10 @@
 document and wait for it to finish.
 
 ``action_document`` on the policy item can name a document this repo owns
-(terraform/ssm-documents/*.tf) or one owned by another deployment entirely
-- aws-cloud-security-toolbox's ``auto-remediate-open-ssh-rdp`` or
-``ec2-isolation-runbook`` documents, for example - as long as this
-function's execution role is granted ssm:StartAutomationExecution on that
-document's ARN (see variables.tf: external_ssm_document_arns).
+(terraform/ssm-documents*.tf) or one owned by another deployment entirely,
+as long as this function's execution role is granted
+ssm:StartAutomationExecution on that document's ARN (see variables.tf:
+external_ssm_document_arns).
 
 Polls get_automation_execution in-process rather than using a Step
 Functions Wait+Choice loop. That's a deliberate scope cut: it's simpler

@@ -33,14 +33,17 @@ resource "aws_iam_role_policy" "execute_remediation" {
         # Start/GetAutomationExecution can be scoped to the specific
         # documents this deployment is allowed to run: the ones this
         # module owns, plus whatever's listed in
-        # var.external_ssm_document_arns (e.g. aws-cloud-security-toolbox
-        # playbooks). Never "run any automation document in the account".
+        # var.external_ssm_document_arns. Never "run any automation
+        # document in the account".
         Effect = "Allow"
         Action = ["ssm:StartAutomationExecution"]
         Resource = concat(
           [
             aws_ssm_document.s3_public_access_remediation.arn,
             aws_ssm_document.disable_compromised_credentials.arn,
+            aws_ssm_document.revoke_open_ssh_rdp.arn,
+            aws_ssm_document.isolate_compromised_instance.arn,
+            aws_ssm_document.deactivate_stale_access_keys.arn,
           ],
           var.external_ssm_document_arns,
         )
@@ -55,7 +58,7 @@ resource "aws_iam_role_policy" "execute_remediation" {
       },
       {
         # Required so SSM Automation can assume the documents' own roles
-        # on this function's behalf. Scoped to the two automation roles
+        # on this function's behalf. Scoped to the automation roles
         # this module creates and to the ssm.amazonaws.com service only -
         # this function can never pass an arbitrary role to an arbitrary
         # service.
@@ -64,6 +67,9 @@ resource "aws_iam_role_policy" "execute_remediation" {
         Resource = [
           aws_iam_role.s3_automation.arn,
           aws_iam_role.guardduty_credentials_automation.arn,
+          aws_iam_role.sg_automation.arn,
+          aws_iam_role.isolation_automation.arn,
+          aws_iam_role.stale_keys_automation.arn,
         ]
         Condition = {
           StringEquals = { "iam:PassedToService" = "ssm.amazonaws.com" }

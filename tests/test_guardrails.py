@@ -127,6 +127,13 @@ def test_denylist_allows_when_no_resource_arn():
     client.get_resources.assert_not_called()
 
 
+def test_denylist_skips_a_non_arn_resource_id():
+    client = MagicMock()
+    result = guardrails.check_resource_denylist(client, "wiz-resource-1234")
+    assert result.allowed is True
+    client.get_resources.assert_not_called()
+
+
 @pytest.mark.parametrize("tag_value", ["TRUE", "True", "true"])
 def test_denylist_tag_match_is_case_insensitive_on_value(tag_value):
     client = MagicMock()
