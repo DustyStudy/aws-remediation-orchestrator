@@ -64,30 +64,19 @@ the system decide, and why?").
 | `record_ledger` | Writes the audit trail; publishes the result notification |
 | `export_evidence` | Scheduled: rolls up the period's ledger entries into compliance evidence documents |
 
-## Relationship to aws-cloud-security-toolbox
+## Playbooks and other deployments
 
-[`aws-cloud-security-toolbox`](https://github.com/DustyStudy/aws-cloud-security-toolbox)
-is a library of independent, standalone remediation templates - each one
-detects and fixes a specific thing, deployed on its own, with no
-concept of approval gates, rate limits, or a shared audit trail across
-playbooks.
+The repo owns five playbooks (`terraform/ssm-documents*.tf`). The
+policy registry, not the playbook, decides whether each one runs
+automatically, waits for approval, or only logs. A document owned by
+another deployment can be added via `external_ssm_document_arns` (see
+[POLICY_REGISTRY.md](POLICY_REGISTRY.md)), so every remediation goes
+through the same policy decision, blast-radius controls and audit trail,
+whichever repo built the playbook.
 
-This repo is the governance layer above that: a single pipeline every
-Security Hub finding flows through, where the *policy registry* - not
-each playbook's own code - decides whether a match runs automatically,
-waits for a human, only logs what it would do, or is ignored. It owns
-two playbooks directly (`S3PublicAccessRemediation`,
-`DisableCompromisedCredentials`) and can dispatch to a document owned by
-another deployment - including the toolbox's own
-`auto-remediate-open-ssh-rdp` or `ec2-isolation-runbook` SSM documents -
-via `external_ssm_document_arns` (see
-[POLICY_REGISTRY.md](POLICY_REGISTRY.md)).
-
-Use the toolbox's templates standalone when you want a specific
-guardrail with no dependencies. Use this orchestrator when you want
-every remediation - regardless of which repo built the playbook - to go
-through the same policy decision, the same blast-radius controls, and
-the same audit trail.
+Findings from tools outside AWS enter through Security Hub too. The
+optional `modules/wiz-finding-bridge` imports Wiz webhook deliveries as
+ASFF findings with a `wiz/` generator id.
 
 ## Known limitations / deliberate scope cuts
 
@@ -106,8 +95,9 @@ visibility:
 - **In-process polling instead of a Wait+Choice loop.** `execute_remediation`
   polls `get_automation_execution` inside a single Lambda invocation
   (bounded by `POLL_TIMEOUT_SECONDS`) rather than using a Step Functions
-  Wait state + Choice loop. Correct and simpler for the two playbooks
-  this repo ships (both finish in seconds); a playbook expected to run
+  Wait state + Choice loop. Correct and simpler for the playbooks this
+  repo ships (each makes a few API calls and finishes in seconds;
+  snapshots are started, not awaited); a playbook expected to run
   long should move to the Wait+Choice pattern instead. See
   `terraform/lambda/execute_remediation/handler.py`.
 - **Evidence export scans the ledger table** rather than querying a

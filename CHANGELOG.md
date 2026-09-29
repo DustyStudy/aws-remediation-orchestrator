@@ -6,6 +6,25 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Three playbooks, ported from aws-cloud-security-toolbox so the
+  orchestrator no longer depends on another repo's documents:
+  - `RevokeOpenSshRdpIngress`: revokes internet-wide 22/3389 ingress.
+  - `IsolateCompromisedInstance`: snapshots volumes, then moves every
+    network interface to a per-VPC isolation group it creates on first use.
+  - `DeactivateStaleAccessKeys`: deactivates only a user's stale keys
+    (defaults match Security Hub IAM.3 and IAM.22).
+- `modules/wiz-finding-bridge`, off by default: imports Wiz webhook
+  deliveries into Security Hub as ASFF findings with a `wiz/` generator id.
+- `playbook_document_names` output, and seed examples for the new
+  playbooks in `terraform.tfvars.example`.
+- Unit tests for every playbook script and the Wiz bridge.
+
+### Fixed
+- The `do-not-remediate` tag check called the tagging API with any
+  resource id. A third-party finding whose resource id isn't an ARN made
+  that call fail. Non-ARN ids now skip the check.
+
 ## [1.0.0] - 2026-09-29
 
 First tagged release.

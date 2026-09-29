@@ -7,9 +7,8 @@ plus the governance metadata (mode, target SSM document, NIST mapping,
 rate limit) that decides what happens next.
 
 See docs/POLICY_REGISTRY.md for the item schema and worked examples,
-including how to point ``action_document`` at an SSM document owned by a
-different repo (e.g. aws-cloud-security-toolbox) instead of one this repo
-ships.
+including how to point ``action_document`` at an SSM document owned by
+another deployment instead of one this repo ships.
 """
 from __future__ import annotations
 

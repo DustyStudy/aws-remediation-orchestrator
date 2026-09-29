@@ -60,8 +60,38 @@ variable "policy_registry_seed" {
 
 variable "external_ssm_document_arns" {
   type        = list(string)
-  description = "ARNs of SSM Automation documents owned by other deployments (e.g. aws-cloud-security-toolbox) that a policy_registry_seed item points at via action_document. The orchestrator's execution role is granted ssm:StartAutomationExecution on exactly these ARNs plus the documents it creates itself - nothing broader."
+  description = "ARNs of SSM Automation documents owned by other deployments that a policy_registry_seed item points at via action_document. The orchestrator's execution role is granted ssm:StartAutomationExecution on exactly these ARNs plus the documents it creates itself - nothing broader."
   default     = []
+}
+
+variable "isolation_stop_instance" {
+  type        = bool
+  description = "Default for IsolateCompromisedInstance's StopInstance parameter. Stopping ends connections that a security group change leaves open, but it also ends the instance's memory state, which forensics may need."
+  default     = false
+}
+
+variable "stale_key_max_age_days" {
+  type        = number
+  description = "DeactivateStaleAccessKeys treats an active key older than this as stale. 90 matches Security Hub control IAM.3."
+  default     = 90
+}
+
+variable "stale_key_max_unused_days" {
+  type        = number
+  description = "DeactivateStaleAccessKeys treats an active key unused (or never used) for longer than this as stale. 45 matches Security Hub control IAM.22."
+  default     = 45
+}
+
+variable "stale_key_exempt_tag_key" {
+  type        = string
+  description = "IAM users with this tag key are skipped by DeactivateStaleAccessKeys, for break-glass accounts. Empty disables the exemption."
+  default     = ""
+}
+
+variable "enable_wiz_finding_bridge" {
+  type        = bool
+  description = "Deploy modules/wiz-finding-bridge, a webhook endpoint that imports Wiz findings into Security Hub so they enter this pipeline. See modules/wiz-finding-bridge/README.md."
+  default     = false
 }
 
 variable "evidence_bucket_force_destroy" {
