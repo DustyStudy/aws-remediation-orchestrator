@@ -11,6 +11,17 @@ compliance-evidence export - built on Step Functions, Lambda, and SSM
 Automation. Every ARN is partition-aware (`data.aws_partition`), so it
 runs in both AWS commercial and GovCloud.
 
+**At a glance**
+
+- **Problem:** auto-remediation that acts on every finding can do more damage
+  than the finding. Teams need a human in the loop for disruptive fixes.
+- **Approach:** one pipeline with a policy registry, rate limits, a circuit
+  breaker, an email approval gate and an audit ledger.
+- **Result:** [run end to end in a real AWS account](docs/PROOF.md). That run
+  found 4 bugs that `terraform validate`, tflint, Checkov, ruff and pytest all
+  missed, including an approval callback that could never succeed. All 4 are
+  fixed, and the proof doc lists what the run did not cover.
+
 ## Why this exists, and how it relates to aws-cloud-security-toolbox
 
 [`aws-cloud-security-toolbox`](https://github.com/DustyStudy/aws-cloud-security-toolbox)
