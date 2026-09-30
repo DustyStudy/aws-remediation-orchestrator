@@ -66,7 +66,7 @@ the system decide, and why?").
 
 ## Playbooks and other deployments
 
-The repo owns five playbooks (`terraform/ssm-documents*.tf`). The
+The repo owns six playbooks (`terraform/ssm-documents*.tf`). The
 policy registry, not the playbook, decides whether each one runs
 automatically, waits for approval, or only logs. A document owned by
 another deployment can be added via `external_ssm_document_arns` (see
