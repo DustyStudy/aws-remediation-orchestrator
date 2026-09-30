@@ -6,6 +6,8 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-30
+
 ### Changed
 - `RevokeOpenSshRdpIngress` now also closes internet-wide database and
   cache ports. A new `RiskyPorts` document parameter takes its default
@@ -15,6 +17,9 @@ follow [Semantic Versioning](https://semver.org/).
   policy items keep working.
 - `terraform.tfvars.example` routes Security Hub control EC2.19
   (high-risk ports) to the same playbook.
+- CI: every workflow is audited by zizmor, every Linux job starts with
+  harden-runner in audit mode, and Dependabot waits 7 days before
+  proposing an update.
 
 ### Added
 - `RevokeRoleSessions` playbook: denies every session of the IAM role in a
@@ -81,5 +86,6 @@ Found during the real-account run in `docs/PROOF.md`:
 - The KMS key policy did not allow the Step Functions and API Gateway log
   groups, so their creation failed.
 
-[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/releases/tag/v1.0.0
