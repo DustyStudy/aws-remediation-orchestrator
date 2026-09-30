@@ -27,9 +27,12 @@ def _rule(protocol, from_port, to_port, v4=(), v6=()):
     return rule
 
 
-def _run(script, *rules):
+def _run(script, *rules, ports=None):
     script.ec2.describe_security_groups.return_value = {"SecurityGroups": [{"IpPermissions": list(rules)}]}
-    return script.handler({"ResourceArn": SG_ARN}, None)
+    events = {"ResourceArn": SG_ARN}
+    if ports is not None:
+        events["RiskyPorts"] = ports
+    return script.handler(events, None)
 
 
 def _revoked(script):
@@ -86,3 +89,34 @@ def test_missing_group_revokes_nothing(script):
 
     script.ec2.revoke_security_group_ingress.assert_not_called()
     assert result["GroupId"] == "sg-1"
+
+
+def test_database_port_is_revoked_when_listed(script):
+    _run(script, _rule("tcp", 5432, 5432, v4=["0.0.0.0/0"]), ports="22,3389,5432")
+
+    assert _revoked(script) == [{"IpProtocol": "tcp", "FromPort": 5432, "ToPort": 5432, "IpRanges": [{"CidrIp": "0.0.0.0/0"}]}]
+
+
+def test_database_port_is_left_alone_when_not_listed(script):
+    _run(script, _rule("tcp", 5432, 5432, v4=["0.0.0.0/0"]), ports="22,3389")
+
+    script.ec2.revoke_security_group_ingress.assert_not_called()
+
+
+def test_missing_ports_parameter_falls_back_to_ssh_and_rdp(script):
+    _run(script, _rule("tcp", 5432, 5432, v4=["0.0.0.0/0"]), _rule("tcp", 22, 22, v4=["0.0.0.0/0"]))
+
+    assert [rule["FromPort"] for rule in _revoked(script)] == [22]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("22, 3389,5432", (22, 3389, 5432)), ("", (22, 3389)), (None, (22, 3389)), ("5432,", (5432,))],
+)
+def test_parse_ports(script, value, expected):
+    assert script.parse_ports(value) == expected
+
+
+def test_parse_ports_rejects_out_of_range(script):
+    with pytest.raises(ValueError):
+        script.parse_ports("22,70000")

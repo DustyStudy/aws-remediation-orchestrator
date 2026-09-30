@@ -60,7 +60,7 @@ The suggested mode is what `terraform.tfvars.example` seeds.
 | Playbook | What it does | Suggested mode |
 |---|---|---|
 | `S3PublicAccessRemediation` | Re-applies S3 Block Public Access on the bucket. | `auto` |
-| `RevokeOpenSshRdpIngress` | Revokes security group rules that open 22 or 3389 to `0.0.0.0/0` or `::/0`. Narrower rules stay. | `auto` |
+| `RevokeOpenSshRdpIngress` | Revokes security group rules that open SSH, RDP or a database port (`open_ingress_revoke_ports`: 22, 3389, 1433, 1521, 3306, 5432, 6379, 9200, 27017) to `0.0.0.0/0` or `::/0`. Narrower rules stay. | `auto` |
 | `DisableCompromisedCredentials` | Deactivates every active access key of the IAM user in a GuardDuty finding. | `approval_required` |
 | `DeactivateStaleAccessKeys` | Deactivates only the user's keys older than 90 days or unused for 45 (Security Hub IAM.3 / IAM.22). | `approval_required` |
 | `RevokeRoleSessions` | Adds the `AWSRevokeOlderSessions` deny (same as the console's "Revoke active sessions") to the role in a GuardDuty credential finding, so stolen role credentials stop working. New sessions still work. | `approval_required` |

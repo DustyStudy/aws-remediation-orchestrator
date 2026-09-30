@@ -56,12 +56,17 @@ resource "aws_ssm_document" "revoke_open_ssh_rdp" {
 
   content = yamlencode({
     schemaVersion = "0.3"
-    description   = "Revokes security group ingress rules that open SSH (22) or RDP (3389) to 0.0.0.0/0 or ::/0."
+    description   = "Revokes security group ingress rules that open a risky port (SSH, RDP and database ports by default) to 0.0.0.0/0 or ::/0."
     assumeRole    = "{{ AutomationAssumeRole }}"
     parameters = {
       ResourceArn = {
         type        = "String"
         description = "ARN of the flagged security group."
+      }
+      RiskyPorts = {
+        type        = "String"
+        description = "Comma-separated ports. An internet-wide ingress rule that covers any of them is revoked."
+        default     = join(",", var.open_ingress_revoke_ports)
       }
       FindingId = {
         type        = "String"
@@ -84,7 +89,7 @@ resource "aws_ssm_document" "revoke_open_ssh_rdp" {
         inputs = {
           Runtime      = "python3.11"
           Handler      = "handler"
-          InputPayload = { ResourceArn = "{{ ResourceArn }}" }
+          InputPayload = { ResourceArn = "{{ ResourceArn }}", RiskyPorts = "{{ RiskyPorts }}" }
           Script       = file("${path.module}/ssm-documents/scripts/revoke_open_ssh_rdp.py")
         }
         outputs = [
@@ -100,9 +105,9 @@ resource "aws_ssm_document" "revoke_open_ssh_rdp" {
           Service  = "sns"
           Api      = "Publish"
           TopicArn = "{{ NotificationTopicArn }}"
-          Subject  = "Security group {{ RevokeOpenIngress.GroupId }} - open SSH/RDP revoked"
+          Subject  = "Security group {{ RevokeOpenIngress.GroupId }} - internet-wide ingress revoked"
           Message  = <<-EOT
-            Revoked these internet-wide SSH/RDP ingress rules on security group
+            Revoked these internet-wide ingress rules (ports {{ RiskyPorts }}) on security group
             {{ RevokeOpenIngress.GroupId }} in response to finding {{ FindingId }}:
             {{ RevokeOpenIngress.RevokedRules }}
           EOT
