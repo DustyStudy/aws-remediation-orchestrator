@@ -34,9 +34,12 @@ policy_registry_seed = {
     description           = "Re-applies S3 Block Public Access. Safe to run automatically - idempotent, can only reduce exposure."
   }
 
+  # GuardDuty UnauthorizedAccess:IAMUser/MaliciousIPCaller (and .Custom).
+  # GuardDuty says "IAMUser" for any principal, so the playbook refuses
+  # findings about a role; RevokeRoleSessions handles those.
   guardduty-compromised-credentials = {
     match_field           = "type_prefix"
-    match_value           = "Unusual Behaviors/User"
+    match_value           = "TTPs/UnauthorizedAccess:IAMUser-MaliciousIPCaller"
     mode                  = "approval_required"
     action_document       = "remediation-orchestrator-DisableCompromisedCredentials"
     action_document_owner = "self"

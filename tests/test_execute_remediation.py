@@ -6,6 +6,7 @@ FINDING = {
     "finding_id": "f-1",
     "account_id": "123456789012",
     "principal_role_name": "app-role",
+    "principal_user_name": "alice",
 }
 
 
@@ -31,6 +32,13 @@ def test_revoke_role_sessions_without_a_role_passes_the_sentinel(handler):
     params = handler._document_parameters(finding, "remediation-orchestrator-RevokeRoleSessions")
 
     assert params["RoleName"] == ["unspecified"]
+
+
+def test_disable_compromised_credentials_gets_user_and_account(handler):
+    params = handler._document_parameters(FINDING, "remediation-orchestrator-DisableCompromisedCredentials")
+
+    assert params["AccountId"] == ["123456789012"]
+    assert params["UserName"] == ["alice"]
 
 
 def test_other_documents_get_only_the_base_parameters(handler):

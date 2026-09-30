@@ -115,3 +115,21 @@ def test_normalize_ignores_iam_user_access_keys():
 
 def test_normalize_has_no_role_for_other_resources():
     assert asff.normalize(BASE_FINDING)["principal_role_name"] == ""
+
+
+def test_normalize_reads_user_from_a_key_listed_after_the_instance():
+    # Shape of a real InstanceCredentialExfiltration finding in Security Hub.
+    finding = _access_key_finding({"PrincipalType": "IAMUser", "PrincipalName": "alice"})
+    finding["Resources"].insert(0, {"Id": "arn:aws:ec2:us-east-1:123456789012:instance/i-1", "Type": "AwsEc2Instance"})
+
+    normalized = asff.normalize(finding)
+
+    assert normalized["resource_arn"] == "arn:aws:ec2:us-east-1:123456789012:instance/i-1"
+    assert normalized["principal_user_name"] == "alice"
+    assert normalized["principal_role_name"] == ""
+
+
+def test_normalize_has_no_user_for_a_role_session():
+    finding = _access_key_finding({"PrincipalType": "AssumedRole", "PrincipalName": "app-role"})
+
+    assert asff.normalize(finding)["principal_user_name"] == ""
