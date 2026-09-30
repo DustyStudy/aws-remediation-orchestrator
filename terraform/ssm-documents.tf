@@ -194,8 +194,14 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
         default     = "unspecified"
       }
       AccountId = {
-        type    = "String"
-        default = "unspecified"
+        type        = "String"
+        description = "Account from the finding. The script refuses to run if it isn't this account."
+        default     = "unspecified"
+      }
+      UserName = {
+        type        = "String"
+        description = "IAM user from the finding's AwsIamAccessKey resource. Falls back to ResourceArn when it's an IAM user ARN."
+        default     = "unspecified"
       }
       NotificationTopicArn = {
         type    = "String"
@@ -216,6 +222,8 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
           InputPayload = {
             ResourceArn = "{{ ResourceArn }}"
             FindingId   = "{{ FindingId }}"
+            AccountId   = "{{ AccountId }}"
+            UserName    = "{{ UserName }}"
           }
           Script = file("${path.module}/ssm-documents/scripts/disable_access_keys.py")
         }

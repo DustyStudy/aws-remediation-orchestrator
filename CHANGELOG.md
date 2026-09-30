@@ -29,6 +29,15 @@ follow [Semantic Versioning](https://semver.org/).
 - Unit tests for every playbook script and the Wiz bridge.
 
 ### Fixed
+- `DisableCompromisedCredentials` took the user name from the finding's
+  first resource ID. In Security Hub's copy of a GuardDuty finding that's
+  the access key ID or an EC2 instance, so the playbook could never find
+  the user. It now gets the user from the `AwsIamAccessKey` resource
+  (`principal_user_name`), refuses findings about a role, and refuses a
+  finding from another account.
+- The `guardduty-compromised-credentials` seed matched
+  `Unusual Behaviors/User`, which no GuardDuty finding uses. It now
+  matches `TTPs/UnauthorizedAccess:IAMUser-MaliciousIPCaller`.
 - The `do-not-remediate` tag check called the tagging API with any
   resource id. A third-party finding whose resource id isn't an ARN made
   that call fail. Non-ARN ids now skip the check.

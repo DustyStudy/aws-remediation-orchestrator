@@ -67,7 +67,11 @@ def _document_parameters(finding: dict[str, Any], document_name: str) -> dict[st
     if document_name.endswith("S3PublicAccessRemediation"):
         return base
     if document_name.endswith("DisableCompromisedCredentials"):
-        return {**base, "AccountId": [finding["account_id"]]}
+        return {
+            **base,
+            "AccountId": [finding["account_id"]],
+            "UserName": [finding.get("principal_user_name") or "unspecified"],
+        }
     if document_name.endswith("RevokeRoleSessions"):
         return {
             **base,
