@@ -64,6 +64,17 @@ variable "external_ssm_document_arns" {
   default     = []
 }
 
+variable "open_ingress_revoke_ports" {
+  type        = list(number)
+  description = "Ports that RevokeOpenSshRdpIngress closes when a rule opens them to 0.0.0.0/0 or ::/0: SSH, RDP, and common database and cache ports (MSSQL, Oracle, MySQL, PostgreSQL, Redis, Elasticsearch/OpenSearch, MongoDB). No service on these ports should face the whole internet."
+  default     = [22, 3389, 1433, 1521, 3306, 5432, 6379, 9200, 27017]
+
+  validation {
+    condition     = length(var.open_ingress_revoke_ports) > 0 && alltrue([for p in var.open_ingress_revoke_ports : p >= 0 && p <= 65535 && floor(p) == p])
+    error_message = "open_ingress_revoke_ports must list at least one whole-number port from 0 to 65535."
+  }
+}
+
 variable "isolation_stop_instance" {
   type        = bool
   description = "Default for IsolateCompromisedInstance's StopInstance parameter. Stopping ends connections that a security group change leaves open, but it also ends the instance's memory state, which forensics may need."

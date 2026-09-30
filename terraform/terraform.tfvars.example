@@ -59,7 +59,7 @@ policy_registry_seed = {
     nist_controls         = ["SC-7", "AC-4"]
     max_actions_per_hour  = 20
     severity_threshold    = "MEDIUM"
-    description           = "Revokes internet-wide SSH ingress. Safe to run automatically - only removes 0.0.0.0/0 and ::/0 rules on 22/3389."
+    description           = "Revokes internet-wide SSH ingress. Safe to run automatically - only removes 0.0.0.0/0 and ::/0 rules on open_ingress_revoke_ports."
   }
 
   open-rdp = {
@@ -72,6 +72,22 @@ policy_registry_seed = {
     max_actions_per_hour  = 20
     severity_threshold    = "MEDIUM"
     description           = "Revokes internet-wide RDP ingress. Same playbook as open-ssh."
+  }
+
+  # Security Hub control EC2.19 (high-risk ports, including 3306, 5432 and
+  # 1433, open to the internet). The playbook closes only the ports in
+  # open_ingress_revoke_ports. EC2.19 also lists ports such as 25 and 8080
+  # that can serve the public on purpose; those are left alone.
+  open-high-risk-ports = {
+    match_field           = "generator_id"
+    match_value           = "security-control/EC2.19"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
+    action_document_owner = "self"
+    nist_controls         = ["SC-7", "AC-4", "CM-7"]
+    max_actions_per_hour  = 20
+    severity_threshold    = "MEDIUM"
+    description           = "Revokes internet-wide database and remote-administration ingress. Same playbook as open-ssh."
   }
 
   # Security Hub control IAM.3 (keys not rotated in 90 days).

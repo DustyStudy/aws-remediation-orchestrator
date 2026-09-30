@@ -6,6 +6,16 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- `RevokeOpenSshRdpIngress` now also closes internet-wide database and
+  cache ports. A new `RiskyPorts` document parameter takes its default
+  from the `open_ingress_revoke_ports` variable: 22, 3389, 1433, 1521,
+  3306, 5432, 6379, 9200 and 27017. Set the variable to `[22, 3389]` to
+  keep the old behavior. The document name is unchanged, so existing
+  policy items keep working.
+- `terraform.tfvars.example` routes Security Hub control EC2.19
+  (high-risk ports) to the same playbook.
+
 ### Added
 - `RevokeRoleSessions` playbook: denies every session of the IAM role in a
   GuardDuty credential finding that was issued before now, using the same
