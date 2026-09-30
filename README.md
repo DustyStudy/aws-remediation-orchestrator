@@ -22,6 +22,35 @@ runs in both AWS commercial and GovCloud.
   missed, including an approval callback that could never succeed. All 4 are
   fixed, and the proof doc lists what the run did not cover.
 
+## How it works
+
+```mermaid
+flowchart TB
+  SH["Security Hub finding<br/>GuardDuty, Config, Inspector, Wiz"] --> EB["EventBridge rule"]
+  LEDGER[("Audit ledger<br/>DynamoDB")]
+  EXPORT["Scheduled evidence export"]
+  S3[("S3 evidence bucket")]
+  EB --> N
+  subgraph SFN["Step Functions state machine"]
+    N["Normalize ASFF"] --> P["Look up policy<br/>DynamoDB registry"]
+    P --> G{"Guardrails<br/>circuit breaker, rate limit,<br/>do-not-remediate tag"}
+    G -- pass --> M{"Policy mode"}
+    M -- approval_required --> A["Email signed link<br/>waitForTaskToken"]
+    M -- auto --> X["Run SSM Automation playbook"]
+    A -- approved --> X
+  end
+  G -- blocked --> LEDGER
+  M -- "ignore / dry_run" --> LEDGER
+  A -- "denied / timeout" --> LEDGER
+  X --> LEDGER
+  LEDGER --> EXPORT --> S3
+```
+
+Every path ends in the ledger, including findings that were blocked, ignored
+or denied, so it records what the system decided as well as what it did.
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) has the full state list and
+the known limitations.
+
 ## Why this exists
 
 Standalone auto-remediation scripts each detect and fix one thing, with
@@ -33,7 +62,7 @@ match runs automatically, waits for a human, only logs what it would do,
 or is ignored. A **circuit breaker and per-policy rate limit** cap how
 much damage a misconfigured detector (or this system itself) can do.
 Every decision, acted on or not, lands in an **audit ledger** that
-exports as compliance evidence. It ships five playbooks and can dispatch
+exports as compliance evidence. It ships six playbooks and can dispatch
 to a playbook owned by another deployment via
 `external_ssm_document_arns`. See
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full picture.
@@ -48,7 +77,7 @@ to a playbook owned by another deployment via
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
 | **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, or failed - with the guardrail result and NIST control mapping that produced it. |
 | **Evidence export** (S3, scheduled) | Rolls the ledger up into [`grc-evidence-automation`](https://github.com/DustyStudy/grc-evidence-automation)-shaped JSON documents. See [`docs/EVIDENCE_SCHEMA.md`](docs/EVIDENCE_SCHEMA.md). |
-| **Five owned playbooks** | See [Playbooks](#playbooks). |
+| **Six owned playbooks** | See [Playbooks](#playbooks). |
 | **Wiz intake (optional)** | `enable_wiz_finding_bridge = true` deploys a webhook endpoint that imports Wiz findings into Security Hub, so they enter the same pipeline. See [`terraform/modules/wiz-finding-bridge`](terraform/modules/wiz-finding-bridge/README.md). |
 
 ### Playbooks
@@ -66,19 +95,53 @@ The suggested mode is what `terraform.tfvars.example` seeds.
 | `RevokeRoleSessions` | Adds the `AWSRevokeOlderSessions` deny (same as the console's "Revoke active sessions") to the role in a GuardDuty credential finding, so stolen role credentials stop working. New sessions still work. | `approval_required` |
 | `IsolateCompromisedInstance` | Snapshots the instance's volumes, then moves every network interface to a per-VPC isolation security group with no inbound or outbound rules. Can also stop it. | `approval_required` |
 
-## Deploying
+## Quickstart
+
+Needs Terraform >= 1.5, an AWS account with Security Hub enabled in the
+target region (GuardDuty too, for the smoke test below), and an email
+address you can confirm an SNS subscription from.
 
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars   # then edit match values - see docs/POLICY_REGISTRY.md
+cp terraform.tfvars.example terraform.tfvars
+# Set notification_email. The example runs the S3 public-access and
+# open-ingress policies in auto mode, which changes resources. Review
+# docs/POLICY_REGISTRY.md first, or set them to dry_run.
+# New accounts often have a Lambda concurrency limit of 10. Check with
+# `aws lambda get-account-settings`; if it is under ~150, also set
+# enable_lambda_reserved_concurrency = false.
 terraform init
-terraform plan
 terraform apply
 ```
 
-Requires Terraform >= 1.5 and the `hashicorp/aws` provider >= 5.0.
-Security Hub must already be enabled in the target account/region for
-the EventBridge rule to receive anything.
+Confirm the SNS subscription email, then push a sample finding through:
+
+```bash
+DETECTOR=$(aws guardduty list-detectors --query 'DetectorIds[0]' --output text)
+aws guardduty create-sample-findings --detector-id "$DETECTOR" \
+  --finding-types "Policy:IAMUser/RootCredentialUsage"
+
+# Security Hub ingests it in 1-2 minutes. Then:
+aws stepfunctions list-executions \
+  --state-machine-arn "$(terraform output -raw state_machine_arn)" --max-results 5
+aws dynamodb scan --table-name "$(terraform output -raw remediation_ledger_table_name)" \
+  --max-items 5
+```
+
+Expect a `SUCCEEDED` execution and a ledger entry. The sample finding matches
+no specific rule, so it falls through to the `default` policy and is recorded
+as `dry_run`. Nothing in the account is changed.
+
+To pause every remediation at once, set the circuit breaker:
+
+```bash
+aws ssm put-parameter --overwrite --value true \
+  --name "$(terraform output -raw circuit_breaker_parameter_name)"
+```
+
+Tear down with `terraform destroy`. Set `evidence_bucket_force_destroy = true`
+first, or empty the evidence bucket. [`docs/PROOF.md`](docs/PROOF.md#4-reproduce-it)
+walks through the approval path as well.
 
 ## Testing
 
@@ -108,7 +171,7 @@ aws-remediation-orchestrator/
 │   │   ├── normalize_finding/  lookup_policy/  check_guardrails/
 │   │   ├── request_approval/   approval_callback/  execute_remediation/
 │   │   └── record_ledger/      export_evidence/
-│   ├── ssm-documents*.tf        # the five playbooks this repo owns
+│   ├── ssm-documents*.tf        # the six playbooks this repo owns
 │   ├── ssm-documents/scripts/   # their inline aws:executeScript steps
 │   ├── modules/wiz-finding-bridge/  # optional Wiz webhook intake
 │   ├── stepfunctions.tf         # the state machine definition
