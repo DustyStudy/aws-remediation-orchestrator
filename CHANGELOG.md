@@ -7,6 +7,14 @@ follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `RevokeRoleSessions` playbook: denies every session of the IAM role in a
+  GuardDuty credential finding that was issued before now, using the same
+  `AWSRevokeOlderSessions` policy as the IAM console. It refuses to act on
+  a role in another account, on Identity Center roles, on service-linked
+  roles and on the orchestrator's own roles. `DisableCompromisedCredentials`
+  only covers IAM user keys, so stolen role credentials had no playbook.
+- Normalized findings carry `principal_role_name`, read from the ASFF
+  `AwsIamAccessKey` resource, for playbooks that act on a role.
 - Three playbooks, ported from aws-cloud-security-toolbox so the
   orchestrator no longer depends on another repo's documents:
   - `RevokeOpenSshRdpIngress`: revokes internet-wide 22/3389 ingress.

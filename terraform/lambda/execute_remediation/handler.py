@@ -68,6 +68,12 @@ def _document_parameters(finding: dict[str, Any], document_name: str) -> dict[st
         return base
     if document_name.endswith("DisableCompromisedCredentials"):
         return {**base, "AccountId": [finding["account_id"]]}
+    if document_name.endswith("RevokeRoleSessions"):
+        return {
+            **base,
+            "AccountId": [finding["account_id"]],
+            "RoleName": [finding.get("principal_role_name") or "unspecified"],
+        }
     return base
 
 

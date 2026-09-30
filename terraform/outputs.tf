@@ -40,6 +40,7 @@ output "playbook_document_names" {
     revoke_open_ssh_rdp             = aws_ssm_document.revoke_open_ssh_rdp.name
     isolate_compromised_instance    = aws_ssm_document.isolate_compromised_instance.name
     deactivate_stale_access_keys    = aws_ssm_document.deactivate_stale_access_keys.name
+    revoke_role_sessions            = aws_ssm_document.revoke_role_sessions.name
   }
   description = "SSM Automation document names of the playbooks this module owns, for a policy item's action_document."
 }

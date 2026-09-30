@@ -53,6 +53,7 @@ def normalize(finding: dict[str, Any]) -> dict[str, Any]:
         "resource_arn": primary_resource.get("Id", ""),
         "resource_type": primary_resource.get("Type", "Other"),
         "resource_tags": primary_resource.get("Tags") or {},
+        "principal_role_name": _assumed_role_name(resources),
         "first_observed_at": finding.get("FirstObservedAt", finding.get("CreatedAt", "")),
         "description": finding.get("Description", ""),
     }
@@ -85,6 +86,26 @@ def meets_severity_threshold(severity_label: str, threshold: str | None) -> bool
         # severity doesn't silently get skipped; the ledger entry still
         # records the raw label for a human to notice.
         return True
+
+
+def _assumed_role_name(resources: list[dict[str, Any]]) -> str:
+    """Name of the IAM role behind a role-session access key, or "".
+
+    GuardDuty IAM findings put the caller in an AwsIamAccessKey resource.
+    For stolen role credentials PrincipalType is AssumedRole and
+    PrincipalName is the role. SessionContext.SessionIssuer names the role
+    directly when present, so it wins.
+    """
+    for resource in resources:
+        if resource.get("Type") != "AwsIamAccessKey":
+            continue
+        details = (resource.get("Details") or {}).get("AwsIamAccessKey") or {}
+        issuer = (details.get("SessionContext") or {}).get("SessionIssuer") or {}
+        if issuer.get("Type") == "Role" and issuer.get("UserName"):
+            return issuer["UserName"]
+        if details.get("PrincipalType") == "AssumedRole" and details.get("PrincipalName"):
+            return details["PrincipalName"]
+    return ""
 
 
 def _region_from_arn(arn: str) -> str:

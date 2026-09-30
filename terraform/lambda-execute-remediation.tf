@@ -44,6 +44,7 @@ resource "aws_iam_role_policy" "execute_remediation" {
             aws_ssm_document.revoke_open_ssh_rdp.arn,
             aws_ssm_document.isolate_compromised_instance.arn,
             aws_ssm_document.deactivate_stale_access_keys.arn,
+            aws_ssm_document.revoke_role_sessions.arn,
           ],
           var.external_ssm_document_arns,
         )
@@ -70,6 +71,7 @@ resource "aws_iam_role_policy" "execute_remediation" {
           aws_iam_role.sg_automation.arn,
           aws_iam_role.isolation_automation.arn,
           aws_iam_role.stale_keys_automation.arn,
+          aws_iam_role.revoke_sessions_automation.arn,
         ]
         Condition = {
           StringEquals = { "iam:PassedToService" = "ssm.amazonaws.com" }

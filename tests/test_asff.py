@@ -83,3 +83,35 @@ def test_should_process(record_state, workflow_status, expected):
 )
 def test_meets_severity_threshold(label, threshold, expected):
     assert asff.meets_severity_threshold(label, threshold) is expected
+
+
+def _access_key_finding(details):
+    finding = dict(BASE_FINDING)
+    finding["Resources"] = [{"Id": "AWS::IAM::AccessKey:ASIAEXAMPLE", "Type": "AwsIamAccessKey", "Details": {"AwsIamAccessKey": details}}]
+    return finding
+
+
+def test_normalize_reads_role_from_assumed_role_access_key():
+    finding = _access_key_finding({"PrincipalType": "AssumedRole", "PrincipalName": "app-role"})
+
+    assert asff.normalize(finding)["principal_role_name"] == "app-role"
+
+
+def test_normalize_prefers_session_issuer_role_name():
+    finding = _access_key_finding({
+        "PrincipalType": "AssumedRole",
+        "PrincipalName": "something-else",
+        "SessionContext": {"SessionIssuer": {"Type": "Role", "UserName": "app-role"}},
+    })
+
+    assert asff.normalize(finding)["principal_role_name"] == "app-role"
+
+
+def test_normalize_ignores_iam_user_access_keys():
+    finding = _access_key_finding({"PrincipalType": "IAMUser", "PrincipalName": "alice"})
+
+    assert asff.normalize(finding)["principal_role_name"] == ""
+
+
+def test_normalize_has_no_role_for_other_resources():
+    assert asff.normalize(BASE_FINDING)["principal_role_name"] == ""
