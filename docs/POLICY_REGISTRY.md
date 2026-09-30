@@ -95,6 +95,7 @@ policy_registry_seed = {
 `execute_remediation`'s parameter mapping
 (`terraform/lambda/execute_remediation/handler.py`, `_document_parameters`)
 passes `ResourceArn` and `FindingId` to every document (plus
-`AccountId` for `DisableCompromisedCredentials`). The documents this repo
+`AccountId` for `DisableCompromisedCredentials`, and `AccountId` plus
+`RoleName` for `RevokeRoleSessions`). The documents this repo
 ships give every other parameter a default. An external document with a
 different parameter contract needs its own branch added there.

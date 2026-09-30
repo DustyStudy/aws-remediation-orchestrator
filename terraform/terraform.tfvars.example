@@ -95,6 +95,20 @@ policy_registry_seed = {
     severity_threshold    = "HIGH"
     description           = "Snapshots and network-isolates the instance. An outage if the finding is wrong, so a human confirms first."
   }
+
+  # GuardDuty UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.InsideAWS
+  # and .OutsideAWS: instance-role credentials used from somewhere else.
+  guardduty-role-credential-exfiltration = {
+    match_field           = "type_prefix"
+    match_value           = "Effects/Data Exfiltration/UnauthorizedAccess:IAMUser-InstanceCredentialExfiltration"
+    mode                  = "approval_required"
+    action_document       = "remediation-orchestrator-RevokeRoleSessions"
+    action_document_owner = "self"
+    nist_controls         = ["AC-2", "IR-4", "IA-5"]
+    max_actions_per_hour  = 5
+    severity_threshold    = "HIGH"
+    description           = "Denies every session of the role issued before now. Workloads on the role fail until they refresh, so a human confirms first."
+  }
 }
 
 # Optional: import Wiz findings through a webhook endpoint. They arrive

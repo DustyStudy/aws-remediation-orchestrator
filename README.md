@@ -63,6 +63,7 @@ The suggested mode is what `terraform.tfvars.example` seeds.
 | `RevokeOpenSshRdpIngress` | Revokes security group rules that open 22 or 3389 to `0.0.0.0/0` or `::/0`. Narrower rules stay. | `auto` |
 | `DisableCompromisedCredentials` | Deactivates every active access key of the IAM user in a GuardDuty finding. | `approval_required` |
 | `DeactivateStaleAccessKeys` | Deactivates only the user's keys older than 90 days or unused for 45 (Security Hub IAM.3 / IAM.22). | `approval_required` |
+| `RevokeRoleSessions` | Adds the `AWSRevokeOlderSessions` deny (same as the console's "Revoke active sessions") to the role in a GuardDuty credential finding, so stolen role credentials stop working. New sessions still work. | `approval_required` |
 | `IsolateCompromisedInstance` | Snapshots the instance's volumes, then moves every network interface to a per-VPC isolation security group with no inbound or outbound rules. Can also stop it. | `approval_required` |
 
 ## Deploying
