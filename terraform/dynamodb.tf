@@ -64,6 +64,7 @@ resource "aws_dynamodb_table_item" "policy_registry_seed" {
 # check_guardrails.handler. TTL cleans up counters two hours after their
 # bucket - see remediation_common.guardrails.check_rate_limit.
 
+# trivy:ignore:AWS-0024 -- see the checkov:skip reason below.
 resource "aws_dynamodb_table" "rate_limit_counters" {
   # checkov:skip=CKV_AWS_28: point-in-time recovery is for data worth
   # restoring - these items are hour-bucketed counters that self-expire

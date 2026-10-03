@@ -2,6 +2,7 @@
 # (account, region, day) here. Not public, encrypted, versioned so an
 # overwritten evidence document doesn't destroy the prior day's proof.
 
+# trivy:ignore:AWS-0089 -- this is the log destination; see below.
 resource "aws_s3_bucket" "access_logs" {
   # checkov:skip=CKV_AWS_144: cross-region replication is a per-deployment
   # decision, not something this module should force.
@@ -33,6 +34,8 @@ resource "aws_s3_bucket_versioning" "access_logs" {
   }
 }
 
+# S3 server access logging can only deliver to an SSE-S3 bucket.
+# trivy:ignore:AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
   bucket = aws_s3_bucket.access_logs.id
   rule {
@@ -120,7 +123,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "evidence" {
   bucket = aws_s3_bucket.evidence.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "aws:kms"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.data.arn
     }
     bucket_key_enabled = true
   }
