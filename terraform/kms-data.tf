@@ -12,7 +12,7 @@ resource "aws_kms_key" "data" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Sid       = "EnableIAMUserPermissions"
         Effect    = "Allow"
@@ -20,7 +20,20 @@ resource "aws_kms_key" "data" {
         Action    = "kms:*"
         Resource  = "*"
       },
-    ]
+      ], local.org_mode ? [
+      {
+        # Org mode: a member account's playbook roles publish to the
+        # notifications topic, which this key encrypts.
+        Sid       = "AllowMemberPlaybookNotify"
+        Effect    = "Allow"
+        Principal = { AWS = local.member_account_roots }
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey*"]
+        Resource  = "*"
+        Condition = {
+          ArnLike = { "aws:PrincipalArn" = local.member_automation_role_pattern }
+        }
+      },
+    ] : [])
   })
 }
 

@@ -17,10 +17,13 @@ runs in both AWS commercial and GovCloud.
   than the finding. Teams need a human in the loop for disruptive fixes.
 - **Approach:** one pipeline with a policy registry, rate limits, a circuit
   breaker, an email approval gate and an audit ledger.
-- **Result:** [run end to end in a real AWS account](docs/PROOF.md). That run
-  found 4 bugs that `terraform validate`, tflint, Checkov, ruff and pytest all
-  missed, including an approval callback that could never succeed. All 4 are
-  fixed, and the proof doc lists what the run did not cover.
+- **Result:** [run end to end in real AWS accounts, twice](docs/PROOF.md):
+  once in a single account, and once across four accounts of an AWS
+  organization, where playbooks changed real resources in three of them.
+  The runs found defects that `terraform validate`, tflint, Checkov, ruff
+  and pytest all missed, including an approval callback and a circuit
+  breaker that could never succeed. All are fixed, and the proof doc lists
+  what the runs did not cover.
 
 ## How it works
 
@@ -78,6 +81,7 @@ to a playbook owned by another deployment via
 | **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, or failed - with the guardrail result and NIST control mapping that produced it. |
 | **Evidence export** (S3, scheduled) | Rolls the ledger up into [`grc-evidence-automation`](https://github.com/DustyStudy/grc-evidence-automation)-shaped JSON documents. See [`docs/EVIDENCE_SCHEMA.md`](docs/EVIDENCE_SCHEMA.md). |
 | **Six owned playbooks** | See [Playbooks](#playbooks). |
+| **Org mode (optional)** | `org_member_account_ids` turns one deployment in the Security Hub delegated administrator account into the orchestrator for the organization: a playbook runs in the member account that owns the resource, through roles created there by [`terraform/modules/playbook-roles`](terraform/modules/playbook-roles). See [`docs/ORG_MODE.md`](docs/ORG_MODE.md). |
 | **Wiz intake (optional)** | `enable_wiz_finding_bridge = true` deploys a webhook endpoint that imports Wiz findings into Security Hub, so they enter the same pipeline. See [`terraform/modules/wiz-finding-bridge`](terraform/modules/wiz-finding-bridge/README.md). |
 
 ### Playbooks
@@ -156,10 +160,11 @@ CI (`.github/workflows/lint-and-scan.yml`) runs pytest/ruff, plus
 
 ## Proof
 
-Deployed for real, fed real findings, and carried through a real human
-approve/deny click - found and fixed four bugs along the way, including one
-that silently broke every approval decision. See
-[`docs/PROOF.md`](docs/PROOF.md).
+Two live runs. The first, in one account, carried a real finding through a
+real human deny click. The second ran org mode across four accounts:
+playbooks remediated real buckets, a security group and a role in three
+accounts, and the rate limit, circuit breaker, tag denylist and evidence
+export all fired. See [`docs/PROOF.md`](docs/PROOF.md).
 
 ## Repository layout
 
@@ -173,6 +178,7 @@ aws-remediation-orchestrator/
 │   │   └── record_ledger/      export_evidence/
 │   ├── ssm-documents*.tf        # the six playbooks this repo owns
 │   ├── ssm-documents/scripts/   # their inline aws:executeScript steps
+│   ├── modules/playbook-roles/  # the playbooks' IAM roles; also applied in member accounts (org mode)
 │   ├── modules/wiz-finding-bridge/  # optional Wiz webhook intake
 │   ├── stepfunctions.tf         # the state machine definition
 │   ├── eventbridge.tf           # Security Hub ingestion
@@ -180,9 +186,11 @@ aws-remediation-orchestrator/
 │   ├── dynamodb.tf              # policy registry, rate limits, pending approvals, ledger
 │   ├── kms-data.tf / lambda-common.tf / secrets.tf / s3.tf / ssm-parameter.tf
 │   └── terraform.tfvars.example
+├── examples/org-mode/           # hub and two member accounts, with a live test script
 ├── tests/                       # pytest unit tests
 └── docs/
     ├── ARCHITECTURE.md
+    ├── ORG_MODE.md
     ├── POLICY_REGISTRY.md
     └── EVIDENCE_SCHEMA.md
 ```

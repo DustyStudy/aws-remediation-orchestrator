@@ -1,0 +1,637 @@
+{
+  "note": "Org-mode live run, 2026-10-04 UTC. Hub = Security Hub delegated administrator account; member-a and member-b = member accounts with the playbook roles; outside = an account in the organization with no roles. Account IDs, the security group ID and the GuardDuty detector ID are masked. Each finding was sent more than once, so its ledger list reads in time order: the first pass (before the IAM fix), the second pass (after it), and a third pass while the circuit breaker was on.",
+  "findings": {
+    "s3-hub": {
+      "finding_account": "hub",
+      "generator_id": "security-control/S3.8",
+      "title": "S3 general purpose buckets should block public access",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:25:01.742371+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "failed",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:34:57.224993+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "executed",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": "Success"
+        },
+        {
+          "execution_ts": "2026-10-04T03:47:23.027495+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ],
+      "automation": {
+        "ran_in": "hub",
+        "document": "remediation-orchestrator-S3PublicAccessRemediation",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<hub>:assumed-role/remediation-orchestrator-execute-remediation-role/remediation-orchestrator-execute-remediation",
+        "steps": {
+          "ExtractBucketName": "Success",
+          "PutPublicAccessBlock": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    },
+    "s3-member": {
+      "finding_account": "member-a",
+      "generator_id": "security-control/S3.8",
+      "title": "S3 general purpose buckets should block public access",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:25:02.360873+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "failed",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:34:59.684717+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "executed",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": "Success"
+        },
+        {
+          "execution_ts": "2026-10-04T03:47:23.190460+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ],
+      "automation": {
+        "ran_in": "member-a",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-S3PublicAccessRemediation",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "ExtractBucketName": "Success",
+          "PutPublicAccessBlock": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    },
+    "s3-denylisted": {
+      "finding_account": "member-a",
+      "generator_id": "security-control/S3.8",
+      "title": "S3 general purpose buckets should block public access",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:25:01.653984+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "resource_tagged_do_not_remediate",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:34:52.775755+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "resource_tagged_do_not_remediate",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:47:19.420893+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused; resource_tagged_do_not_remediate",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "sg-member": {
+      "finding_account": "member-b",
+      "generator_id": "security-control/EC2.13",
+      "title": "Security groups should not allow ingress from 0.0.0.0/0 or ::/0 to port 22",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:25:02.894328+00:00",
+          "policy_id": "open-ssh",
+          "mode": "auto",
+          "outcome": "failed",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:35:01.847088+00:00",
+          "policy_id": "open-ssh",
+          "mode": "auto",
+          "outcome": "executed",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": "Success"
+        },
+        {
+          "execution_ts": "2026-10-04T03:47:18.416326+00:00",
+          "policy_id": "open-ssh",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ],
+      "automation": {
+        "ran_in": "member-b",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-RevokeOpenSshRdpIngress",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-b>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "RevokeOpenIngress": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    },
+    "not-onboarded": {
+      "finding_account": "outside",
+      "generator_id": "security-control/S3.8",
+      "title": "S3 general purpose buckets should block public access",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:24:58.581961+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "account_not_onboarded",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:34:47.667000+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "account_not_onboarded",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:47:20.542805+00:00",
+          "policy_id": "s3-public-access",
+          "mode": "auto",
+          "outcome": "blocked",
+          "guardrail_reason": "account_not_onboarded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "rate-1": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/rate-limit",
+      "title": "Rate limit test 1",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:37:31.487041+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "dry_run",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:43:32.286641+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "rate-2": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/rate-limit",
+      "title": "Rate limit test 2",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:37:51.583865+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "dry_run",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:43:52.309068+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused; rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "rate-3": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/rate-limit",
+      "title": "Rate limit test 3",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:38:08.819194+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:44:08.954834+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused; rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "rate-4": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/rate-limit",
+      "title": "Rate limit test 4",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:38:29.462907+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:44:36.586934+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused; rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "rate-5": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/rate-limit",
+      "title": "Rate limit test 5",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:38:48.795839+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:44:49.817501+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused; rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "rate-6": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/rate-limit",
+      "title": "Rate limit test 6",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:39:12.762880+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:45:14.866765+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused; rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "rate-7": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/rate-limit",
+      "title": "Rate limit test 7",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:39:32.890277+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:45:33.044480+00:00",
+          "policy_id": "live-test-rate-limit",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused; rate_limit_exceeded",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    },
+    "role-sessions": {
+      "finding_account": "member-a",
+      "generator_id": "live-test/guardduty-shaped",
+      "title": "Credentials for an instance role were used from an external IP address",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:54:40.203715+00:00",
+          "policy_id": "guardduty-role-credential-exfiltration",
+          "mode": "approval_required",
+          "outcome": "executed",
+          "guardrail_reason": null,
+          "decided_by": "human (approval link)",
+          "execution_status": "Success"
+        }
+      ],
+      "automation": {
+        "ran_in": "member-a",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-RevokeRoleSessions",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "RevokeSessions": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    },
+    "guardduty-sample": {
+      "finding_account": "member-b",
+      "generator_id": "arn:aws:guardduty:us-east-1:<member-b>:detector/<masked>",
+      "title": "The API GeneratedFindingAPIName was invoked using root credentials.",
+      "ledger": [
+        {
+          "execution_ts": "2026-10-04T03:25:07.402304+00:00",
+          "policy_id": "default",
+          "mode": "dry_run",
+          "outcome": "dry_run",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:34:58.771106+00:00",
+          "policy_id": "default",
+          "mode": "dry_run",
+          "outcome": "dry_run",
+          "guardrail_reason": null,
+          "decided_by": "system",
+          "execution_status": ""
+        },
+        {
+          "execution_ts": "2026-10-04T03:47:31.404708+00:00",
+          "policy_id": "default",
+          "mode": "dry_run",
+          "outcome": "blocked",
+          "guardrail_reason": "circuit_breaker_paused",
+          "decided_by": "system",
+          "execution_status": ""
+        }
+      ]
+    }
+  },
+  "real_guardduty_findings_about_the_test_buckets": [
+    {
+      "finding_account": "member-a",
+      "title": "Amazon S3 Block Public Access was disabled for the S3 bucket orch-live-test-<member-a>-denylisted.",
+      "severity": "LOW",
+      "execution_ts": "2026-10-04T03:30:02.669226+00:00",
+      "policy_id": "default",
+      "mode": "dry_run",
+      "outcome": "dry_run",
+      "guardrail_reason": null,
+      "decided_by": "system",
+      "execution_status": ""
+    },
+    {
+      "finding_account": "hub",
+      "title": "Amazon S3 Block Public Access was disabled for the S3 bucket orch-live-test-<hub>-hub.",
+      "severity": "LOW",
+      "execution_ts": "2026-10-04T03:30:25.801458+00:00",
+      "policy_id": "default",
+      "mode": "dry_run",
+      "outcome": "dry_run",
+      "guardrail_reason": null,
+      "decided_by": "system",
+      "execution_status": ""
+    },
+    {
+      "finding_account": "member-a",
+      "title": "Amazon S3 Block Public Access was disabled for the S3 bucket orch-live-test-<member-a>-member.",
+      "severity": "LOW",
+      "execution_ts": "2026-10-04T03:31:55.786852+00:00",
+      "policy_id": "default",
+      "mode": "dry_run",
+      "outcome": "dry_run",
+      "guardrail_reason": null,
+      "decided_by": "system",
+      "execution_status": ""
+    }
+  ],
+  "resource_state_after": {
+    "hub_bucket_block_public_access": {
+      "BlockPublicAcls": true,
+      "IgnorePublicAcls": true,
+      "BlockPublicPolicy": true,
+      "RestrictPublicBuckets": true
+    },
+    "member_bucket_block_public_access": {
+      "BlockPublicAcls": true,
+      "IgnorePublicAcls": true,
+      "BlockPublicPolicy": true,
+      "RestrictPublicBuckets": true
+    },
+    "denylisted_bucket_block_public_access": {
+      "BlockPublicAcls": false,
+      "IgnorePublicAcls": false,
+      "BlockPublicPolicy": false,
+      "RestrictPublicBuckets": false
+    },
+    "security_group_rules_before": [
+      "22 from 0.0.0.0/0",
+      "5432 from 0.0.0.0/0",
+      "443 from 0.0.0.0/0",
+      "22 from 10.0.0.0/8"
+    ],
+    "security_group_rules_after": [
+      "22 from 10.0.0.0/8",
+      "443 from 0.0.0.0/0"
+    ],
+    "victim_role_inline_policies": [
+      "AWSRevokeOlderSessions"
+    ],
+    "victim_role_revoke_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Deny",
+          "Action": [
+            "*"
+          ],
+          "Resource": [
+            "*"
+          ],
+          "Condition": {
+            "DateLessThan": {
+              "aws:TokenIssueTime": "2026-10-04T03:54:35Z"
+            }
+          }
+        }
+      ]
+    },
+    "circuit_breaker": "false"
+  },
+  "evidence_export": {
+    "invocation": {
+      "documents_written": [
+        "remediation-orchestrator/2026-10-04/<hub>-us-east-1.json",
+        "remediation-orchestrator/2026-10-04/<member-a>-us-east-1.json",
+        "remediation-orchestrator/2026-10-04/<member-b>-us-east-1.json",
+        "remediation-orchestrator/2026-10-04/<outside>-us-east-1.json"
+      ],
+      "ledger_items_processed": 36
+    },
+    "documents": {
+      "remediation-orchestrator/2026-10-04/<hub>-us-east-1.json": {
+        "account": "<hub>",
+        "status": "fail",
+        "summary": "4 finding(s) evaluated between 2026-10-03T03:55:32.743444+00:00 and 2026-10-04T03:55:32.743444+00:00; 1 remediated, 1 dry-run, 1 blocked by guardrail, 0 denied, 1 failed",
+        "controls": {
+          "nist_800_53": [
+            "AC-3",
+            "SC-7"
+          ]
+        },
+        "data": {
+          "findings_evaluated": 4,
+          "remediated": 1,
+          "dry_run": 1,
+          "blocked_by_guardrail": 1,
+          "denied": 0,
+          "failed": 1,
+          "period_start": "2026-10-03T03:55:32.743444+00:00",
+          "period_end": "2026-10-04T03:55:32.743444+00:00"
+        },
+        "sha256": "1174e5fe9462978a85f304663591cf567c2aa628472b9a3efd1c4588f39070c0"
+      },
+      "remediation-orchestrator/2026-10-04/<member-a>-us-east-1.json": {
+        "account": "<member-a>",
+        "status": "fail",
+        "summary": "23 finding(s) evaluated between 2026-10-03T03:55:32.743444+00:00 and 2026-10-04T03:55:32.743444+00:00; 2 remediated, 4 dry-run, 16 blocked by guardrail, 0 denied, 1 failed",
+        "controls": {
+          "nist_800_53": [
+            "AC-2",
+            "AC-3",
+            "IA-5",
+            "IR-4",
+            "SC-7"
+          ]
+        },
+        "data": {
+          "findings_evaluated": 23,
+          "remediated": 2,
+          "dry_run": 4,
+          "blocked_by_guardrail": 16,
+          "denied": 0,
+          "failed": 1,
+          "period_start": "2026-10-03T03:55:32.743444+00:00",
+          "period_end": "2026-10-04T03:55:32.743444+00:00"
+        },
+        "sha256": "bf303d826c773ad8785d35fe8d3f4de176ba6a1a3c8984caa00e1d08f8f5801d"
+      },
+      "remediation-orchestrator/2026-10-04/<member-b>-us-east-1.json": {
+        "account": "<member-b>",
+        "status": "fail",
+        "summary": "6 finding(s) evaluated between 2026-10-03T03:55:32.743444+00:00 and 2026-10-04T03:55:32.743444+00:00; 1 remediated, 2 dry-run, 2 blocked by guardrail, 0 denied, 1 failed",
+        "controls": {
+          "nist_800_53": [
+            "AC-4",
+            "SC-7"
+          ]
+        },
+        "data": {
+          "findings_evaluated": 6,
+          "remediated": 1,
+          "dry_run": 2,
+          "blocked_by_guardrail": 2,
+          "denied": 0,
+          "failed": 1,
+          "period_start": "2026-10-03T03:55:32.743444+00:00",
+          "period_end": "2026-10-04T03:55:32.743444+00:00"
+        },
+        "sha256": "f6007ea7a5ecc28a465ae738e4d73c19327396580229919b6e25b4b408cf919f"
+      },
+      "remediation-orchestrator/2026-10-04/<outside>-us-east-1.json": {
+        "account": "<outside>",
+        "status": "pass",
+        "summary": "3 finding(s) evaluated between 2026-10-03T03:55:32.743444+00:00 and 2026-10-04T03:55:32.743444+00:00; 0 remediated, 0 dry-run, 3 blocked by guardrail, 0 denied, 0 failed",
+        "controls": {
+          "nist_800_53": [
+            "AC-3",
+            "SC-7"
+          ]
+        },
+        "data": {
+          "findings_evaluated": 3,
+          "remediated": 0,
+          "dry_run": 0,
+          "blocked_by_guardrail": 3,
+          "denied": 0,
+          "failed": 0,
+          "period_start": "2026-10-03T03:55:32.743444+00:00",
+          "period_end": "2026-10-04T03:55:32.743444+00:00"
+        },
+        "sha256": "a10019a0156981090a4e10f2b64934ea7799455c09758a4499b637102c2b538c"
+      }
+    }
+  }
+}

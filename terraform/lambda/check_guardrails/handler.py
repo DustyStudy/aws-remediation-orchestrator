@@ -9,6 +9,10 @@ finding wasn't acted on.
 If the rate limit is blown by more than ``CIRCUIT_BREAKER_MULTIPLIER``x its
 threshold, trips the org-wide circuit breaker: that's the signal a
 detector is storming rather than a policy just needing a higher limit.
+
+In org mode (see docs/ORG_MODE.md) the denylist tag is read in the account
+that owns the resource, and a finding from an account the orchestrator
+has no roles in is blocked as account_not_onboarded.
 """
 from __future__ import annotations
 
@@ -16,21 +20,34 @@ import os
 from typing import Any
 
 import boto3
-from remediation_common import guardrails
+from remediation_common import crossaccount, guardrails
 
 _ssm = boto3.client("ssm")
 _dynamodb = boto3.client("dynamodb")
 _tagging = boto3.client("resourcegroupstaggingapi")
+_sts = boto3.client("sts")
 
 PAUSE_PARAMETER_NAME = os.environ["PAUSE_PARAMETER_NAME"]
 PAUSE_PARAMETER_KMS_KEY_ID = os.environ["PAUSE_PARAMETER_KMS_KEY_ID"]
 RATE_LIMIT_TABLE_NAME = os.environ["RATE_LIMIT_TABLE_NAME"]
 CIRCUIT_BREAKER_MULTIPLIER = float(os.environ.get("CIRCUIT_BREAKER_MULTIPLIER", "3"))
+MEMBER_GUARDRAILS_ROLE_NAME = os.environ.get("MEMBER_GUARDRAILS_ROLE_NAME", "")
+MEMBER_ACCOUNT_IDS = [a for a in os.environ.get("MEMBER_ACCOUNT_IDS", "").split(",") if a]
 
 
-def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     finding = event["finding"]
     matched_policy = event["policy"]
+    account_id = finding.get("account_id", "")
+
+    # Checked first, and without touching the rate limit: the orchestrator
+    # has no role to act with in this account, so nothing below applies.
+    if not crossaccount.is_onboarded(context.invoked_function_arn, account_id, MEMBER_ACCOUNT_IDS):
+        return {
+            "finding": finding,
+            "policy": matched_policy,
+            "guardrail_result": {"allowed": False, "reason": "account_not_onboarded"},
+        }
 
     breaker = guardrails.check_circuit_breaker(_ssm, PAUSE_PARAMETER_NAME)
 
@@ -41,7 +58,13 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     if not rate.allowed and rate.reason == "rate_limit_exceeded":
         _maybe_trip_breaker(matched_policy["match_id"], max_per_hour)
 
-    denylist = guardrails.check_resource_denylist(_tagging, finding["resource_arn"])
+    tagging = _tagging
+    member = crossaccount.member_client_kwargs(
+        _sts, context.invoked_function_arn, account_id, MEMBER_GUARDRAILS_ROLE_NAME
+    )
+    if member:
+        tagging = boto3.client("resourcegroupstaggingapi", **member)
+    denylist = guardrails.check_resource_denylist(tagging, finding["resource_arn"])
 
     allowed = breaker.allowed and rate.allowed and denylist.allowed
     reasons = [r.reason for r in (breaker, rate, denylist) if not r.allowed and r.reason]
@@ -70,5 +93,5 @@ def _maybe_trip_breaker(policy_id: str, max_per_hour: int) -> None:
         count = int((over_by.reason or "count=0").split("=")[1].split("/")[0])
         if count >= max_per_hour * CIRCUIT_BREAKER_MULTIPLIER:
             guardrails.trip_circuit_breaker(_ssm, PAUSE_PARAMETER_NAME, PAUSE_PARAMETER_KMS_KEY_ID)
-    except Exception:  # noqa: BLE001 - guardrail tripping must never block the guardrail decision itself
-        print(f"WARN: circuit-breaker check for policy {policy_id!r} failed, leaving breaker as-is")
+    except Exception as exc:  # noqa: BLE001 - guardrail tripping must never block the guardrail decision itself
+        print(f"WARN: circuit-breaker check for policy {policy_id!r} failed, leaving breaker as-is: {exc}")

@@ -10,53 +10,11 @@
 # Public Access is safe and idempotent - it can't make a bucket more
 # exposed, and running it twice is a no-op.
 
-resource "aws_iam_role" "s3_automation" {
-  name = "${local.name_prefix}-s3-automation-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ssm.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "s3_automation" {
-  name = "${local.name_prefix}-s3-automation-policy"
-  role = aws_iam_role.s3_automation.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # The bucket name isn't known until the automation runs (it's
-        # parsed from the finding at execution time), so this can't be
-        # scoped tighter than the S3 resource type.
-        Effect   = "Allow"
-        Action   = ["s3:PutBucketPublicAccessBlock"]
-        Resource = "${local.arn_prefix}:s3:::*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["sns:Publish"]
-        Resource = aws_sns_topic.notifications.arn
-      },
-      {
-        # The notifications topic is encrypted with the data key.
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
-        Resource = aws_kms_key.data.arn
-      },
-    ]
-  })
-}
-
 resource "aws_ssm_document" "s3_public_access_remediation" {
   name            = "${local.name_prefix}-S3PublicAccessRemediation"
   document_type   = "Automation"
   document_format = "YAML"
+  permissions     = local.document_share
   tags            = local.common_tags
 
   content = yamlencode({
@@ -79,7 +37,7 @@ resource "aws_ssm_document" "s3_public_access_remediation" {
       }
       AutomationAssumeRole = {
         type    = "String"
-        default = aws_iam_role.s3_automation.arn
+        default = module.playbook_roles.role_arns["s3_automation"]
       }
     }
     mainSteps = [
@@ -136,59 +94,11 @@ resource "aws_ssm_document" "s3_public_access_remediation" {
 # deactivating a user's keys is disruptive if the finding turns out to be
 # a false positive, so a human confirms first.
 
-resource "aws_iam_role" "guardduty_credentials_automation" {
-  name = "${local.name_prefix}-credentials-automation-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ssm.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "guardduty_credentials_automation" {
-  name = "${local.name_prefix}-credentials-automation-policy"
-  role = aws_iam_role.guardduty_credentials_automation.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # The IAM user isn't known until the automation runs (it's parsed
-        # from the finding at execution time), so this can't be scoped
-        # tighter than the resource type - same constraint as the S3
-        # automation role's PutBucketPublicAccessBlock above. The blast
-        # radius this grants (deactivating any IAM user's access keys) is
-        # bounded by who can reach this role: it's assumable only by
-        # ssm.amazonaws.com, only via this document, and this playbook's
-        # seeded mode is approval_required, so a human confirms the target
-        # before it ever runs.
-        Effect   = "Allow"
-        Action   = ["iam:ListAccessKeys", "iam:UpdateAccessKey", "iam:TagUser"]
-        Resource = "${local.arn_prefix}:iam::${local.account_id}:user/*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["sns:Publish"]
-        Resource = aws_sns_topic.notifications.arn
-      },
-      {
-        # The notifications topic is encrypted with the data key.
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
-        Resource = aws_kms_key.data.arn
-      },
-    ]
-  })
-}
-
 resource "aws_ssm_document" "disable_compromised_credentials" {
   name            = "${local.name_prefix}-DisableCompromisedCredentials"
   document_type   = "Automation"
   document_format = "YAML"
+  permissions     = local.document_share
   tags            = local.common_tags
 
   content = yamlencode({
@@ -221,7 +131,7 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
       }
       AutomationAssumeRole = {
         type    = "String"
-        default = aws_iam_role.guardduty_credentials_automation.arn
+        default = module.playbook_roles.role_arns["guardduty_credentials_automation"]
       }
     }
     mainSteps = [

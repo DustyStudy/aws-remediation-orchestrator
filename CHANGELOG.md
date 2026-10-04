@@ -6,7 +6,35 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Org mode. Set `org_member_account_ids` on a deployment in the Security
+  Hub delegated administrator account and a playbook for a member
+  account's finding runs in that account: `execute_remediation` assumes a
+  role there and starts the hub's shared document as the member's own
+  playbook role. The `do-not-remediate` tag is read in the member account
+  too. A finding from an account that isn't listed is recorded as
+  `blocked` with the reason `account_not_onboarded`. See
+  `docs/ORG_MODE.md` and `examples/org-mode`.
+- `modules/playbook-roles`: the six playbook roles, plus the two roles the
+  hub assumes when it is applied in a member account.
+- `member_account_config` output with the inputs that module needs.
+
+### Fixed
+- No playbook could start: the `execute_remediation` role allowed
+  `ssm:StartAutomationExecution` on `automation-definition/<name>` ARNs,
+  but SSM authorizes the call against `document/<name>` and
+  `automation-execution/*`. Both `auto` and approved remediations were
+  denied. Found by the org-mode live run (`docs/PROOF.md`).
+- The circuit breaker could not trip: overwriting the SecureString pause
+  parameter needs `kms:Encrypt` on the data key, which the
+  `check_guardrails` role lacked. The warning it logged now includes the
+  error.
+- The approval link no longer has a doubled slash before `decision`.
+
 ### Changed
+- The playbook roles moved from the root module into
+  `modules/playbook-roles`. `moved` blocks carry existing state across, so
+  an upgrade plans no changes to them.
 - The notifications topic and the evidence bucket are now encrypted with
   the module's data CMK instead of the AWS-managed `aws/sns` and `aws/s3`
   keys. The SSM automation roles that publish to the topic get

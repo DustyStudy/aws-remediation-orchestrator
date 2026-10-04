@@ -29,7 +29,7 @@ output "circuit_breaker_parameter_name" {
 }
 
 output "approvals_endpoint" {
-  value       = "${aws_apigatewayv2_stage.approvals.invoke_url}/decision"
+  value       = "${trimsuffix(aws_apigatewayv2_stage.approvals.invoke_url, "/")}/decision"
   description = "The approve/deny callback URL embedded in approval-request notifications."
 }
 
@@ -43,6 +43,20 @@ output "playbook_document_names" {
     revoke_role_sessions            = aws_ssm_document.revoke_role_sessions.name
   }
   description = "SSM Automation document names of the playbooks this module owns, for a policy item's action_document."
+}
+
+output "member_account_config" {
+  value = {
+    name_prefix            = local.name_prefix
+    region                 = local.region
+    notification_topic_arn = aws_sns_topic.notifications.arn
+    data_key_arn           = aws_kms_key.data.arn
+    hub = {
+      execute_remediation_role_arn = aws_iam_role.execute_remediation.arn
+      check_guardrails_role_arn    = aws_iam_role.check_guardrails.arn
+    }
+  }
+  description = "Inputs for modules/playbook-roles in a member account (org mode). Each key is that module's variable of the same name."
 }
 
 output "wiz_webhook_url_base" {

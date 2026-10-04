@@ -17,44 +17,52 @@ resource "aws_iam_role" "execute_remediation" {
   })
 }
 
+locals {
+  playbook_document_names = [
+    aws_ssm_document.s3_public_access_remediation.name,
+    aws_ssm_document.disable_compromised_credentials.name,
+    aws_ssm_document.revoke_open_ssh_rdp.name,
+    aws_ssm_document.isolate_compromised_instance.name,
+    aws_ssm_document.deactivate_stale_access_keys.name,
+    aws_ssm_document.revoke_role_sessions.name,
+  ]
+}
+
 resource "aws_iam_role_policy" "execute_remediation" {
   name = "${local.name_prefix}-execute-remediation-policy"
   role = aws_iam_role.execute_remediation.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = "${local.arn_prefix}:logs:${local.region}:${local.account_id}:*"
       },
       {
-        # Start/GetAutomationExecution can be scoped to the specific
-        # documents this deployment is allowed to run: the ones this
-        # module owns, plus whatever's listed in
-        # var.external_ssm_document_arns. Never "run any automation
-        # document in the account".
+        # StartAutomationExecution is scoped to the specific documents
+        # this deployment is allowed to run: the ones this module owns,
+        # plus whatever's listed in var.external_ssm_document_arns. Never
+        # "run any automation document in the account". SSM authorizes
+        # the call against the document ARN, and the service reference
+        # also lists the automation definition, so both forms are named.
         Effect = "Allow"
         Action = ["ssm:StartAutomationExecution"]
         Resource = concat(
-          [
-            aws_ssm_document.s3_public_access_remediation.arn,
-            aws_ssm_document.disable_compromised_credentials.arn,
-            aws_ssm_document.revoke_open_ssh_rdp.arn,
-            aws_ssm_document.isolate_compromised_instance.arn,
-            aws_ssm_document.deactivate_stale_access_keys.arn,
-            aws_ssm_document.revoke_role_sessions.arn,
-          ],
+          [for name in local.playbook_document_names : "${local.arn_prefix}:ssm:${local.region}:${local.account_id}:document/${name}"],
+          [for name in local.playbook_document_names : "${local.arn_prefix}:ssm:${local.region}:${local.account_id}:automation-definition/${name}:*"],
           var.external_ssm_document_arns,
         )
       },
       {
-        # GetAutomationExecution addresses a specific execution ID, which
-        # doesn't exist until StartAutomationExecution returns one - no
-        # narrower resource is possible for the poll step.
+        # StartAutomationExecution is also authorized against the
+        # execution it is about to create, and GetAutomationExecution
+        # addresses that execution by ID. Neither ID exists beforehand,
+        # so no narrower resource is possible. The statement above still
+        # limits which documents can be started.
         Effect   = "Allow"
-        Action   = ["ssm:GetAutomationExecution"]
+        Action   = ["ssm:StartAutomationExecution", "ssm:GetAutomationExecution"]
         Resource = "${local.arn_prefix}:ssm:${local.region}:${local.account_id}:automation-execution/*"
       },
       {
@@ -66,12 +74,12 @@ resource "aws_iam_role_policy" "execute_remediation" {
         Effect = "Allow"
         Action = ["iam:PassRole"]
         Resource = [
-          aws_iam_role.s3_automation.arn,
-          aws_iam_role.guardduty_credentials_automation.arn,
-          aws_iam_role.sg_automation.arn,
-          aws_iam_role.isolation_automation.arn,
-          aws_iam_role.stale_keys_automation.arn,
-          aws_iam_role.revoke_sessions_automation.arn,
+          module.playbook_roles.role_arns["s3_automation"],
+          module.playbook_roles.role_arns["guardduty_credentials_automation"],
+          module.playbook_roles.role_arns["sg_automation"],
+          module.playbook_roles.role_arns["isolation_automation"],
+          module.playbook_roles.role_arns["stale_keys_automation"],
+          module.playbook_roles.role_arns["revoke_sessions_automation"],
         ]
         Condition = {
           StringEquals = { "iam:PassedToService" = "ssm.amazonaws.com" }
@@ -87,7 +95,22 @@ resource "aws_iam_role_policy" "execute_remediation" {
         Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
         Resource = "*"
       },
-    ]
+      ], local.org_mode ? [
+      {
+        # Org mode: run a playbook in a member account through the role
+        # modules/playbook-roles creates there.
+        Effect   = "Allow"
+        Action   = ["sts:AssumeRole"]
+        Resource = [for id in var.org_member_account_ids : "${local.arn_prefix}:iam::${id}:role/${local.member_execution_role_name}"]
+      },
+      {
+        # To read a playbook's default automation role, whose name is the
+        # same in every account.
+        Effect   = "Allow"
+        Action   = ["ssm:DescribeDocument"]
+        Resource = ["${local.arn_prefix}:ssm:${local.region}:${local.account_id}:document/${local.name_prefix}-*"]
+      },
+    ] : [])
   })
 }
 
@@ -117,6 +140,8 @@ resource "aws_lambda_function" "execute_remediation" {
     variables = {
       POLL_TIMEOUT_SECONDS  = "90"
       POLL_INTERVAL_SECONDS = "3"
+      # Empty outside org mode, which keeps every playbook in this account.
+      MEMBER_EXECUTION_ROLE_NAME = local.org_mode ? local.member_execution_role_name : ""
     }
   }
 

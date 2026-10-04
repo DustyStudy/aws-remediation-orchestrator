@@ -64,6 +64,26 @@ variable "external_ssm_document_arns" {
   default     = []
 }
 
+variable "org_member_account_ids" {
+  type        = list(string)
+  description = <<-EOT
+    Org mode. Deploy this module in the account that receives the
+    organization's findings (the Security Hub delegated administrator) and
+    list the other accounts it should remediate in. A playbook for a
+    finding from one of them then runs in that account, through roles
+    created there by modules/playbook-roles. The playbook documents are
+    shared with these accounts. A finding from an account that is neither
+    this one nor listed here is recorded as blocked (account_not_onboarded).
+    Empty keeps every playbook in this account. See docs/ORG_MODE.md.
+  EOT
+  default     = []
+
+  validation {
+    condition     = alltrue([for id in var.org_member_account_ids : can(regex("^[0-9]{12}$", id))])
+    error_message = "org_member_account_ids must be 12-digit AWS account IDs."
+  }
+}
+
 variable "open_ingress_revoke_ports" {
   type        = list(number)
   description = "Ports that RevokeOpenSshRdpIngress closes when a rule opens them to 0.0.0.0/0 or ::/0: SSH, RDP, and common database and cache ports (MSSQL, Oracle, MySQL, PostgreSQL, Redis, Elasticsearch/OpenSearch, MongoDB). No service on these ports should face the whole internet."

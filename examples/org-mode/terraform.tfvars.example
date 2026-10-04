@@ -1,0 +1,69 @@
+# Copy to terraform.tfvars. This seed is the one docs/PROOF.md's org-mode
+# run used; live_test.py expects these policy IDs.
+
+region             = "us-east-1"
+hub_profile        = "security"
+member_a_profile   = "member-a"
+member_b_profile   = "member-b"
+member_account_ids = ["111111111111", "222222222222"]
+notification_email = "security-team@example.com"
+
+# A throwaway deployment in accounts with a low Lambda concurrency limit.
+enable_lambda_reserved_concurrency = false
+evidence_bucket_force_destroy      = true
+
+policy_registry_seed = {
+  default = {
+    match_field = "type_prefix"
+    match_value = ""
+    mode        = "dry_run"
+    description = "Fallback when nothing more specific matches."
+  }
+
+  s3-public-access = {
+    match_field           = "generator_id"
+    match_value           = "security-control/S3.8"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-S3PublicAccessRemediation"
+    action_document_owner = "self"
+    nist_controls         = ["AC-3", "SC-7"]
+    max_actions_per_hour  = 20
+    severity_threshold    = "MEDIUM"
+    description           = "Re-applies S3 Block Public Access."
+  }
+
+  open-ssh = {
+    match_field           = "generator_id"
+    match_value           = "security-control/EC2.13"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
+    action_document_owner = "self"
+    nist_controls         = ["SC-7", "AC-4"]
+    max_actions_per_hour  = 20
+    severity_threshold    = "MEDIUM"
+    description           = "Revokes internet-wide ingress on risky ports."
+  }
+
+  guardduty-role-credential-exfiltration = {
+    match_field           = "type_prefix"
+    match_value           = "Effects/Data Exfiltration/UnauthorizedAccess:IAMUser-InstanceCredentialExfiltration"
+    mode                  = "approval_required"
+    action_document       = "remediation-orchestrator-RevokeRoleSessions"
+    action_document_owner = "self"
+    nist_controls         = ["AC-2", "IR-4", "IA-5"]
+    max_actions_per_hour  = 5
+    severity_threshold    = "HIGH"
+    description           = "Denies every session of the role issued before now."
+  }
+
+  # Only for live_test.py: a tight limit so the rate limiter and the
+  # circuit breaker can be tripped with a handful of findings. dry_run,
+  # so it changes nothing.
+  live-test-rate-limit = {
+    match_field          = "generator_id"
+    match_value          = "live-test/rate-limit"
+    mode                 = "dry_run"
+    max_actions_per_hour = 2
+    description          = "Rate-limit and circuit-breaker test."
+  }
+}

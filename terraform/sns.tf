@@ -9,13 +9,23 @@ resource "aws_sns_topic_policy" "notifications" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
+    Statement = concat([{
       Sid       = "AllowAccountPublish"
       Effect    = "Allow"
       Principal = { AWS = "${local.arn_prefix}:iam::${local.account_id}:root" }
       Action    = "sns:Publish"
       Resource  = aws_sns_topic.notifications.arn
-    }]
+      }], local.org_mode ? [{
+      # Org mode: playbooks running in a member account report here too.
+      Sid       = "AllowMemberPlaybookPublish"
+      Effect    = "Allow"
+      Principal = { AWS = local.member_account_roots }
+      Action    = "sns:Publish"
+      Resource  = aws_sns_topic.notifications.arn
+      Condition = {
+        ArnLike = { "aws:PrincipalArn" = local.member_automation_role_pattern }
+      }
+    }] : [])
   })
 }
 
