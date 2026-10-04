@@ -38,7 +38,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install test/lint dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements-dev.txt
 
       - name: Compile all Python sources
         run: python -m compileall -q terraform tests
