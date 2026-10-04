@@ -7,57 +7,11 @@
 # reduce exposure, and running it twice is a no-op. Rules from narrower
 # CIDRs are left alone.
 
-resource "aws_iam_role" "sg_automation" {
-  name = "${local.name_prefix}-sg-automation-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ssm.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "sg_automation" {
-  name = "${local.name_prefix}-sg-automation-policy"
-  role = aws_iam_role.sg_automation.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # Describe calls don't support resource-level permissions.
-        Effect   = "Allow"
-        Action   = ["ec2:DescribeSecurityGroups"]
-        Resource = "*"
-      },
-      {
-        # The group isn't known until the automation parses the finding.
-        Effect   = "Allow"
-        Action   = ["ec2:RevokeSecurityGroupIngress"]
-        Resource = "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:security-group/*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["sns:Publish"]
-        Resource = aws_sns_topic.notifications.arn
-      },
-      {
-        # The notifications topic is encrypted with the data key.
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
-        Resource = aws_kms_key.data.arn
-      },
-    ]
-  })
-}
-
 resource "aws_ssm_document" "revoke_open_ssh_rdp" {
   name            = "${local.name_prefix}-RevokeOpenSshRdpIngress"
   document_type   = "Automation"
   document_format = "YAML"
+  permissions     = local.document_share
   tags            = local.common_tags
 
   content = yamlencode({
@@ -85,7 +39,7 @@ resource "aws_ssm_document" "revoke_open_ssh_rdp" {
       }
       AutomationAssumeRole = {
         type    = "String"
-        default = aws_iam_role.sg_automation.arn
+        default = module.playbook_roles.role_arns["sg_automation"]
       }
     }
     mainSteps = [
@@ -127,100 +81,11 @@ resource "aws_ssm_document" "revoke_open_ssh_rdp" {
 # Suggested mode: "approval_required". Isolation cuts every connection to
 # the instance, which is an outage if the finding is a false positive.
 
-resource "aws_iam_role" "isolation_automation" {
-  name = "${local.name_prefix}-isolation-automation-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ssm.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "isolation_automation" {
-  name = "${local.name_prefix}-isolation-automation-policy"
-  role = aws_iam_role.isolation_automation.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # Describe calls don't support resource-level permissions.
-        Effect   = "Allow"
-        Action   = ["ec2:DescribeInstances", "ec2:DescribeSecurityGroups"]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = ["ec2:CreateTags"]
-        Resource = [
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:instance/*",
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:security-group/*",
-          "${local.arn_prefix}:ec2:${local.region}::snapshot/*",
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = ["ec2:CreateSnapshot"]
-        Resource = [
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:volume/*",
-          "${local.arn_prefix}:ec2:${local.region}::snapshot/*",
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = ["ec2:CreateSecurityGroup"]
-        Resource = [
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:security-group/*",
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:vpc/*",
-        ]
-      },
-      {
-        # Only on the isolation groups this playbook creates (tagged at
-        # creation), so it can't strip egress from any other group.
-        Effect   = "Allow"
-        Action   = ["ec2:RevokeSecurityGroupEgress"]
-        Resource = "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:security-group/*"
-        Condition = {
-          StringEquals = { "aws:ResourceTag/Purpose" = "incident-response-isolation" }
-        }
-      },
-      {
-        Effect = "Allow"
-        Action = ["ec2:ModifyNetworkInterfaceAttribute"]
-        Resource = [
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:network-interface/*",
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:security-group/*",
-          "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:instance/*",
-        ]
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["ec2:StopInstances"]
-        Resource = "${local.arn_prefix}:ec2:${local.region}:${local.account_id}:instance/*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["sns:Publish"]
-        Resource = aws_sns_topic.notifications.arn
-      },
-      {
-        # The notifications topic is encrypted with the data key.
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
-        Resource = aws_kms_key.data.arn
-      },
-    ]
-  })
-}
-
 resource "aws_ssm_document" "isolate_compromised_instance" {
   name            = "${local.name_prefix}-IsolateCompromisedInstance"
   document_type   = "Automation"
   document_format = "YAML"
+  permissions     = local.document_share
   tags            = local.common_tags
 
   content = yamlencode({
@@ -254,7 +119,7 @@ resource "aws_ssm_document" "isolate_compromised_instance" {
       }
       AutomationAssumeRole = {
         type    = "String"
-        default = aws_iam_role.isolation_automation.arn
+        default = module.playbook_roles.role_arns["isolation_automation"]
       }
     }
     mainSteps = [

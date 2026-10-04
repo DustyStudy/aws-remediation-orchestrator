@@ -6,56 +6,11 @@
 # so a human confirms before a workload loses its credentials. Keys are
 # deactivated, not deleted, so the change is reversible.
 
-resource "aws_iam_role" "stale_keys_automation" {
-  name = "${local.name_prefix}-stale-keys-automation-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ssm.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "stale_keys_automation" {
-  name = "${local.name_prefix}-stale-keys-automation-policy"
-  role = aws_iam_role.stale_keys_automation.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # The user isn't known until the automation parses the finding.
-        Effect = "Allow"
-        Action = [
-          "iam:ListUserTags",
-          "iam:ListAccessKeys",
-          "iam:GetAccessKeyLastUsed",
-          "iam:UpdateAccessKey",
-        ]
-        Resource = "${local.arn_prefix}:iam::${local.account_id}:user/*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["sns:Publish"]
-        Resource = aws_sns_topic.notifications.arn
-      },
-      {
-        # The notifications topic is encrypted with the data key.
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
-        Resource = aws_kms_key.data.arn
-      },
-    ]
-  })
-}
-
 resource "aws_ssm_document" "deactivate_stale_access_keys" {
   name            = "${local.name_prefix}-DeactivateStaleAccessKeys"
   document_type   = "Automation"
   document_format = "YAML"
+  permissions     = local.document_share
   tags            = local.common_tags
 
   content = yamlencode({
@@ -91,7 +46,7 @@ resource "aws_ssm_document" "deactivate_stale_access_keys" {
       }
       AutomationAssumeRole = {
         type    = "String"
-        default = aws_iam_role.stale_keys_automation.arn
+        default = module.playbook_roles.role_arns["stale_keys_automation"]
       }
     }
     mainSteps = [
@@ -141,61 +96,11 @@ resource "aws_ssm_document" "deactivate_stale_access_keys" {
 # if the finding is a false positive. The policy is inline and named
 # AWSRevokeOlderSessions, so undoing it means deleting that one policy.
 
-resource "aws_iam_role" "revoke_sessions_automation" {
-  name = "${local.name_prefix}-revoke-sessions-automation-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ssm.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "revoke_sessions_automation" {
-  name = "${local.name_prefix}-revoke-sessions-automation-policy"
-  role = aws_iam_role.revoke_sessions_automation.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # The role isn't known until the automation parses the finding.
-        # PutRolePolicy on any role is a strong grant. It's bounded by who
-        # can reach this role (ssm.amazonaws.com, via this document only)
-        # and by the script, which only writes the fixed deny policy.
-        Effect   = "Allow"
-        Action   = ["iam:GetRole", "iam:PutRolePolicy", "iam:TagRole"]
-        Resource = "${local.arn_prefix}:iam::${local.account_id}:role/*"
-      },
-      {
-        # Never let a finding revoke this module's own roles, which would
-        # stop the orchestrator from running any playbook.
-        Effect   = "Deny"
-        Action   = ["iam:PutRolePolicy", "iam:TagRole"]
-        Resource = "${local.arn_prefix}:iam::${local.account_id}:role/${local.name_prefix}-*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["sns:Publish"]
-        Resource = aws_sns_topic.notifications.arn
-      },
-      {
-        # The notifications topic is encrypted with the data key.
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
-        Resource = aws_kms_key.data.arn
-      },
-    ]
-  })
-}
-
 resource "aws_ssm_document" "revoke_role_sessions" {
   name            = "${local.name_prefix}-RevokeRoleSessions"
   document_type   = "Automation"
   document_format = "YAML"
+  permissions     = local.document_share
   tags            = local.common_tags
 
   content = yamlencode({
@@ -228,7 +133,7 @@ resource "aws_ssm_document" "revoke_role_sessions" {
       }
       AutomationAssumeRole = {
         type    = "String"
-        default = aws_iam_role.revoke_sessions_automation.arn
+        default = module.playbook_roles.role_arns["revoke_sessions_automation"]
       }
     }
     mainSteps = [

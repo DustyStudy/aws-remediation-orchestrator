@@ -23,7 +23,7 @@ resource "aws_iam_role_policy" "check_guardrails" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
@@ -53,11 +53,26 @@ resource "aws_iam_role_policy" "check_guardrails" {
         Resource = [aws_kms_key.lambda.arn, aws_kms_key.data.arn]
       },
       {
+        # Tripping the circuit breaker overwrites a SecureString
+        # parameter, which SSM encrypts with kms:Encrypt.
+        Effect   = "Allow"
+        Action   = ["kms:Encrypt"]
+        Resource = aws_kms_key.data.arn
+      },
+      {
         Effect   = "Allow"
         Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
         Resource = "*"
       },
-    ]
+      ], local.org_mode ? [
+      {
+        # Org mode: read a member account's resource tags for the
+        # do-not-remediate check.
+        Effect   = "Allow"
+        Action   = ["sts:AssumeRole"]
+        Resource = [for id in var.org_member_account_ids : "${local.arn_prefix}:iam::${id}:role/${local.member_guardrails_role_name}"]
+      },
+    ] : [])
   })
 }
 
@@ -89,6 +104,9 @@ resource "aws_lambda_function" "check_guardrails" {
       PAUSE_PARAMETER_KMS_KEY_ID = aws_kms_key.data.arn
       RATE_LIMIT_TABLE_NAME      = aws_dynamodb_table.rate_limit_counters.name
       CIRCUIT_BREAKER_MULTIPLIER = "3"
+      # Both empty outside org mode.
+      MEMBER_GUARDRAILS_ROLE_NAME = local.org_mode ? local.member_guardrails_role_name : ""
+      MEMBER_ACCOUNT_IDS          = join(",", var.org_member_account_ids)
     }
   }
 

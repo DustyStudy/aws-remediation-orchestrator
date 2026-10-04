@@ -84,7 +84,7 @@ resource "aws_lambda_function" "request_approval" {
     variables = {
       PENDING_APPROVALS_TABLE_NAME = aws_dynamodb_table.pending_approvals.name
       NOTIFICATION_TOPIC_ARN       = aws_sns_topic.notifications.arn
-      APPROVAL_BASE_URL            = "${aws_apigatewayv2_stage.approvals.invoke_url}/decision"
+      APPROVAL_BASE_URL            = "${trimsuffix(aws_apigatewayv2_stage.approvals.invoke_url, "/")}/decision"
       SIGNING_SECRET_ARN           = aws_secretsmanager_secret.approval_signing_secret.arn
     }
   }

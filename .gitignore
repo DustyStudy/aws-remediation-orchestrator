@@ -34,3 +34,8 @@ __pycache__/
 .env.*
 *.pem
 *.key
+
+# examples/org-mode/live_test.py working files
+.live-test-state.json
+live-test-evidence.json
+*.tfplan

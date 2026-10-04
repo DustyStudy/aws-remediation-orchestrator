@@ -74,6 +74,9 @@ another deployment can be added via `external_ssm_document_arns` (see
 through the same policy decision, blast-radius controls and audit trail,
 whichever repo built the playbook.
 
+With `org_member_account_ids` set, a playbook for a finding from a member
+account runs in that account; see [ORG_MODE.md](ORG_MODE.md).
+
 Findings from tools outside AWS enter through Security Hub too. The
 optional `modules/wiz-finding-bridge` imports Wiz webhook deliveries as
 ASFF findings with a `wiz/` generator id.
