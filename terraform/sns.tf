@@ -1,6 +1,6 @@
 resource "aws_sns_topic" "notifications" {
   name              = "${local.name_prefix}-notifications"
-  kms_master_key_id = "alias/aws/sns"
+  kms_master_key_id = aws_kms_key.data.arn
   tags              = local.common_tags
 }
 

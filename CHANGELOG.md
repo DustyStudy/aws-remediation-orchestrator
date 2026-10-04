@@ -6,6 +6,17 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- The notifications topic and the evidence bucket are now encrypted with
+  the module's data CMK instead of the AWS-managed `aws/sns` and `aws/s3`
+  keys. The SSM automation roles that publish to the topic get
+  `kms:GenerateDataKey*`/`kms:Decrypt` on that key. Objects already in the
+  evidence bucket keep their old key until rewritten.
+- The data key now sets `deletion_window_in_days = 30` explicitly.
+- Trivy inline ignores for the access-log bucket (SSE-S3 is required for
+  log delivery) and the rate-limit table (no PITR), matching the existing
+  checkov skips.
+
 ## [1.1.0] - 2026-09-30
 
 ### Changed

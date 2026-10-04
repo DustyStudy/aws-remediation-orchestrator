@@ -44,6 +44,12 @@ resource "aws_iam_role_policy" "sg_automation" {
         Action   = ["sns:Publish"]
         Resource = aws_sns_topic.notifications.arn
       },
+      {
+        # The notifications topic is encrypted with the data key.
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
+        Resource = aws_kms_key.data.arn
+      },
     ]
   })
 }
@@ -200,6 +206,12 @@ resource "aws_iam_role_policy" "isolation_automation" {
         Effect   = "Allow"
         Action   = ["sns:Publish"]
         Resource = aws_sns_topic.notifications.arn
+      },
+      {
+        # The notifications topic is encrypted with the data key.
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey*"]
+        Resource = aws_kms_key.data.arn
       },
     ]
   })
