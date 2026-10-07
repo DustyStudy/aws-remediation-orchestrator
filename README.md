@@ -158,13 +158,25 @@ ruff check terraform tests
 CI (`.github/workflows/lint-and-scan.yml`) runs pytest/ruff, plus
 `terraform fmt`/`validate`/`tflint`/Checkov, on every push and PR.
 
-## Proof
+## What the live runs check
 
-Two live runs. The first, in one account, carried a real finding through a
+`terraform validate`, tflint, Checkov, ruff and pytest run on every PR. Live
+runs are a separate layer, because some behavior is decided by AWS only when
+the call is made:
+
+| Decided at call time | What the live run showed | In the code now |
+|---|---|---|
+| Which ARN a service authorizes an action against | SSM checks `StartAutomationExecution` against `document/<name>` and `automation-execution/*`, not the `automation-definition/` ARN that Terraform exports | The execution roles name both ARN forms |
+| KMS permissions on a write path | Overwriting the circuit breaker's SecureString parameter needs `kms:Encrypt`, in addition to the decrypt permissions the read path uses | `kms:Encrypt` granted to the guardrail role, and the handler logs the cause of a failed write |
+| How DynamoDB parses an expression | `consumed` is a reserved word, so the approval callback's update raised `ValidationException` instead of the conditional-check error the handler caught | `ExpressionAttributeNames` in both expressions |
+| Account quotas | A new account's Lambda concurrency limit can be 10, below the reserved concurrency the functions asked for | `enable_lambda_reserved_concurrency` |
+
+Two runs so far. The first, in one account, carried a real finding through a
 real human deny click. The second ran org mode across four accounts:
 playbooks remediated real buckets, a security group and a role in three
 accounts, and the rate limit, circuit breaker, tag denylist and evidence
-export all fired. See [`docs/PROOF.md`](docs/PROOF.md).
+export all fired. [`docs/PROOF.md`](docs/PROOF.md) has the evidence for each
+claim and what the runs did not cover.
 
 ## Repository layout
 
