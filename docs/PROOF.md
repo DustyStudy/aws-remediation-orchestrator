@@ -1,9 +1,13 @@
 # Proof that aws-remediation-orchestrator works
 
-Two live runs against real AWS accounts, each checked against AWS's own
+Three live runs against real AWS accounts, each checked against AWS's own
 records (Step Functions history, DynamoDB, SSM Automation, CloudTrail)
 rather than only the tool's output. Account IDs are masked.
 
+- [Run 3 (2026-10-07)](#run-3-2026-10-07-the-iam-user-and-instance-playbooks-deny-and-timeout):
+  the three playbooks run 2 could not reach (compromised credentials,
+  stale access keys, instance isolation), each changing real resources in
+  a member account, plus a denied and a timed-out approval.
 - [Run 2 (2026-10-04)](#run-2-2026-10-04-org-mode-auto-remediation-and-guardrails):
   org mode across four accounts of a real AWS organization. Auto and
   approved playbooks changed real resources in three accounts, and every
@@ -11,6 +15,84 @@ rather than only the tool's output. Account IDs are masked.
 - [Run 1 (2026-09-22)](#run-1-2026-09-22-single-account-pipeline-and-approval):
   one account. The finding pipeline, the policy fallback and the
   approval gate with a real email click.
+
+## Run 3 (2026-10-07): the IAM-user and instance playbooks, deny and timeout
+
+The same [`examples/org-mode`](../examples/org-mode) deployment as run 2:
+the hub in the Security Hub delegated administrator account and the
+playbook roles in two member accounts, with the organization's service
+control policies in force.
+[`live_test_playbooks.py`](../examples/org-mode/live_test_playbooks.py)
+created the targets and sent the findings. It covers the three playbooks
+and the two approval outcomes that run 2 left to unit tests.
+
+### What was tested
+
+| | |
+|---|---|
+| **Accounts** | Hub and two member accounts |
+| **Resources** | Three IAM users with one active access key each, one of them tagged `break-glass`; a running `t3.nano` in the default security group; an IAM role with no permissions |
+| **How the users were created** | This organization's SCPs deny IAM users and access keys in member accounts to everyone but a few exempt roles. A service-managed StackSet from the management account created the users, so no secret access key ever left CloudFormation |
+| **Findings** | Imported with `BatchImportFindings` in the account that owns the resource, shaped like GuardDuty's and Security Hub's own, then delivered by Security Hub to the hub |
+| **Policy modes** | The three playbooks ran in `auto`, so the run needed nobody to approve them; run 2 covers approval. `approval_timeout_seconds` was 600 |
+| **Stale-key threshold** | `stale_key_max_age_days = -1`. An access key cannot be backdated, so the threshold was lowered until a key created minutes earlier counted as stale. The age arithmetic is covered by unit tests |
+
+All evidence is in [`proof/playbooks-run.json`](proof/playbooks-run.json).
+
+### Claims and evidence
+
+| # | Claim | Result | Evidence |
+|---|---|---|---|
+| 1 | `DisableCompromisedCredentials` deactivates the user's keys and tags the user, in a member account | **Proven** | `compromised-credentials`: `executed`, automation `Success`, started by `remediation-orchestrator-member-execution-role` in the member account. The key went from `Active` to `Inactive` and the user carries `CompromisedCredentials` and `RemediationFindingId` |
+| 2 | The user is taken from the finding's access-key details, not from the resource ID | **Proven** | The finding's resource ID was an access key ID, as in a real GuardDuty finding; the user named in `PrincipalName` is the one that changed |
+| 3 | `DeactivateStaleAccessKeys` deactivates a stale key | **Proven** | `stale-keys-stale`: `executed`, automation `Success`; the key is `Inactive` |
+| 4 | A user carrying the exempt tag is skipped | **Proven** | `stale-keys-exempt`: the automation ran with the same threshold and succeeded, and the key is still `Active` |
+| 5 | `IsolateCompromisedInstance` tags, snapshots and isolates a running instance | **Proven** | `compromised-instance`, in the second member account: `executed`, automation `Success`. The instance carries `IsolatedForIR` and `IsolationFindingId`; one completed 8 GB snapshot is tagged with the instance ID; the instance's only security group is now the one tagged `incident-response-isolation`, with 0 ingress and 0 egress rules, where it had been `default` |
+| 6 | The instance keeps running unless told to stop | **Proven** | Instance state `running`; the `StopInstanceStep` step never left `Pending` |
+| 7 | Deny, in org mode, stops the playbook | **Proven** | `approval-denied`: `denied`, `decided_by: human (approval link)`. The callback answered `Denied. The remediation will not run.` |
+| 8 | A request nobody answers is recorded as denied when it times out | **Proven** | `approval-timeout`: `denied`, `decided_by: system (approval timed out)`, ten minutes after the request |
+| 9 | Neither denied request changed the role | **Proven** | The target role has no inline policies. `RevokeRoleSessions` would have added one |
+| 10 | These playbooks work under SCPs that deny IAM user and key creation | **Proven** | The member playbook roles are not exempt from the organization's SCPs. Deactivating a key and tagging a user are not what the SCPs deny, so the playbooks ran with no exemption |
+
+### What running it for real found
+
+No defect in the playbooks, the roles or the pipeline: every claim held on
+the first attempt.
+
+One thing about redeploying surfaced. The first `terraform apply` stopped
+at the approval signing secret, because the secret from run 2 was still
+inside its seven-day recovery window and Secrets Manager will not reuse
+the name. Anyone who destroys a deployment and applies it again within a
+week meets this. Delete the old secret with
+`aws secretsmanager delete-secret --force-delete-without-recovery`, then
+apply again.
+
+### What this run does not prove
+
+- **A key that is stale by age.** The threshold was lowered instead; see
+  the table above.
+- **A fresh key staying active** next to a stale one on the same user.
+  Covered by unit tests.
+- **Stopping the instance** (`isolation_stop_instance = true`), and an
+  instance with more than one network interface or volume.
+- **A deny opened by a person.** The test script opened the Deny link it
+  read from an SQS subscription to the notifications topic. Run 1 covers
+  a person clicking it.
+- **Real GuardDuty and Security Hub findings for these playbooks.** The
+  findings were imported, with the types and generator IDs AWS documents.
+- **Other regions, scale, GovCloud and cost**, as in run 2.
+
+### Reproduce it
+
+1. Deploy `examples/org-mode` as in run 2, with the `terraform.tfvars.example`
+   in that folder as it stands: it holds the three playbook policies in
+   `auto` mode and the three test settings.
+2. `python live_test_playbooks.py setup --hub <profile> --member-a <profile> --member-b <profile>`.
+   Add `--management <profile>` if SCPs deny IAM users in member accounts.
+3. Run `send`, then `deny`.
+4. Wait `approval_timeout_seconds`, then run `collect`. It writes
+   `live-test-playbooks-evidence.json` with account IDs masked.
+5. Run `cleanup`, then `terraform destroy`.
 
 ## Run 2 (2026-10-04): org mode, auto-remediation and guardrails
 
@@ -71,11 +153,11 @@ and is now built with a single slash.
   findings were imported with the generator IDs Security Hub documents;
   the match values in `terraform.tfvars.example` are still unverified
   against a control's real output.
-- **Three playbooks.** `DisableCompromisedCredentials` and
+- **Three playbooks.** *Covered by Run 3.* `DisableCompromisedCredentials` and
   `DeactivateStaleAccessKeys` need an IAM user, which this organization's
   SCPs do not allow in member accounts. `IsolateCompromisedInstance` needs
   an instance. All three are covered by unit tests only.
-- **Deny and timeout in org mode.** Run 1 covers deny in one account.
+- **Deny and timeout in org mode.** *Covered by Run 3.* Run 1 covers deny in one account.
 - **Approval by email.** Run 1 covers it; see finding 4 above.
 - **Other regions.** One hub in `us-east-1`. This organization aggregates
   findings from two more regions into it, and a playbook for one of those

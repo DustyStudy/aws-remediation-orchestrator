@@ -12,6 +12,13 @@ notification_email = "security-team@example.com"
 enable_lambda_reserved_concurrency = false
 evidence_bucket_force_destroy      = true
 
+# Only for live_test_playbooks.py: a request left alone times out in ten
+# minutes, a key created minutes ago counts as stale, and one test user is
+# exempt. Remove all three for anything but that test.
+approval_timeout_seconds = 600
+stale_key_max_age_days   = -1
+stale_key_exempt_tag_key = "break-glass"
+
 policy_registry_seed = {
   default = {
     match_field = "type_prefix"
@@ -65,5 +72,45 @@ policy_registry_seed = {
     mode                 = "dry_run"
     max_actions_per_hour = 2
     description          = "Rate-limit and circuit-breaker test."
+  }
+
+  # Only for live_test_playbooks.py. These three are approval_required in
+  # terraform/terraform.tfvars.example, which is how to run them for real.
+  # They are auto here so the test needs no one to approve them; approval
+  # itself is covered by guardduty-role-credential-exfiltration above.
+  guardduty-compromised-credentials = {
+    match_field           = "type_prefix"
+    match_value           = "TTPs/UnauthorizedAccess:IAMUser-MaliciousIPCaller"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-DisableCompromisedCredentials"
+    action_document_owner = "self"
+    nist_controls         = ["AC-2", "IR-4"]
+    max_actions_per_hour  = 5
+    severity_threshold    = "HIGH"
+    description           = "Deactivates an IAM user's access keys."
+  }
+
+  stale-access-keys = {
+    match_field           = "generator_id"
+    match_value           = "security-control/IAM.3"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-DeactivateStaleAccessKeys"
+    action_document_owner = "self"
+    nist_controls         = ["IA-5(1)", "AC-2(3)"]
+    max_actions_per_hour  = 10
+    severity_threshold    = "MEDIUM"
+    description           = "Deactivates only the user's stale keys."
+  }
+
+  guardduty-compromised-instance = {
+    match_field           = "type_prefix"
+    match_value           = "TTPs/Command and Control"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-IsolateCompromisedInstance"
+    action_document_owner = "self"
+    nist_controls         = ["IR-4", "SC-7"]
+    max_actions_per_hour  = 5
+    severity_threshold    = "HIGH"
+    description           = "Snapshots and network-isolates the instance."
   }
 }

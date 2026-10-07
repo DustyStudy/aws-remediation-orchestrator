@@ -17,9 +17,9 @@ runs in both AWS commercial and GovCloud.
   than the finding. Teams need a human in the loop for disruptive fixes.
 - **Approach:** one pipeline with a policy registry, rate limits, a circuit
   breaker, an email approval gate and an audit ledger.
-- **Result:** [run end to end in real AWS accounts, twice](docs/PROOF.md):
-  once in a single account, and once across four accounts of an AWS
-  organization, where playbooks changed real resources in three of them.
+- **Result:** [run end to end in real AWS accounts, three times](docs/PROOF.md):
+  once in a single account, and twice across the accounts of an AWS
+  organization, where all six playbooks changed real resources.
   The runs found defects that `terraform validate`, tflint, Checkov, ruff
   and pytest all missed, including an approval callback and a circuit
   breaker that could never succeed. All are fixed, and the proof doc lists
@@ -171,11 +171,13 @@ the call is made:
 | How DynamoDB parses an expression | `consumed` is a reserved word, so the approval callback's update raised `ValidationException` instead of the conditional-check error the handler caught | `ExpressionAttributeNames` in both expressions |
 | Account quotas | A new account's Lambda concurrency limit can be 10, below the reserved concurrency the functions asked for | `enable_lambda_reserved_concurrency` |
 
-Two runs so far. The first, in one account, carried a real finding through a
+Three runs so far. The first, in one account, carried a real finding through a
 real human deny click. The second ran org mode across four accounts:
 playbooks remediated real buckets, a security group and a role in three
 accounts, and the rate limit, circuit breaker, tag denylist and evidence
-export all fired. [`docs/PROOF.md`](docs/PROOF.md) has the evidence for each
+export all fired. The third ran the remaining three playbooks in member
+accounts: it deactivated real access keys, isolated a running instance,
+and recorded a denied and a timed-out approval. [`docs/PROOF.md`](docs/PROOF.md) has the evidence for each
 claim and what the runs did not cover.
 
 ## Repository layout

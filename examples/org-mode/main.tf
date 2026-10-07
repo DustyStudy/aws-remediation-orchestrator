@@ -66,6 +66,24 @@ variable "evidence_bucket_force_destroy" {
   default     = false
 }
 
+variable "approval_timeout_seconds" {
+  type        = number
+  description = "How long an approval request waits before it is recorded as denied."
+  default     = 86400
+}
+
+variable "stale_key_max_age_days" {
+  type        = number
+  description = "DeactivateStaleAccessKeys treats an active key older than this as stale."
+  default     = 90
+}
+
+variable "stale_key_exempt_tag_key" {
+  type        = string
+  description = "IAM users with this tag key are skipped by DeactivateStaleAccessKeys."
+  default     = ""
+}
+
 provider "aws" {
   region  = var.region
   profile = var.hub_profile
@@ -91,6 +109,9 @@ module "orchestrator" {
   org_member_account_ids             = var.member_account_ids
   enable_lambda_reserved_concurrency = var.enable_lambda_reserved_concurrency
   evidence_bucket_force_destroy      = var.evidence_bucket_force_destroy
+  approval_timeout_seconds           = var.approval_timeout_seconds
+  stale_key_max_age_days             = var.stale_key_max_age_days
+  stale_key_exempt_tag_key           = var.stale_key_exempt_tag_key
 }
 
 module "member_a" {

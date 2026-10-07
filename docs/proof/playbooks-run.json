@@ -1,0 +1,286 @@
+{
+  "run_id": "20261007T012932",
+  "accounts": {
+    "hub": "<hub>",
+    "member-a": "<member-a>",
+    "member-b": "<member-b>"
+  },
+  "findings": {
+    "compromised-credentials": {
+      "finding_account": "member-a",
+      "ledger": [
+        {
+          "decided_by": "system",
+          "execution_status": "Success",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "auto",
+          "finding_id": "live-test/20261007T012932/compromised-credentials",
+          "resource_type": "AwsIamAccessKey",
+          "action_document": "remediation-orchestrator-DisableCompromisedCredentials",
+          "account_id": "<member-a>",
+          "policy_id": "guardduty-compromised-credentials",
+          "resource_arn": "AWS::IAM::AccessKey:AKIALIVETESTEXAMPLE",
+          "severity_label": "HIGH",
+          "execution_id": "7d4a0893-7b89-410a-8a67-c53e64fcfe21",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "executed",
+          "nist_controls": [
+            "AC-2",
+            "IR-4"
+          ],
+          "title": "API was invoked from a known malicious IP address",
+          "execution_ts": "2026-10-07T01:31:18.441609+00:00"
+        }
+      ],
+      "automation": {
+        "ran_in": "member-a",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-DisableCompromisedCredentials",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "DisableAllAccessKeys": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    },
+    "stale-keys-stale": {
+      "finding_account": "member-a",
+      "ledger": [
+        {
+          "decided_by": "system",
+          "execution_status": "Success",
+          "generator_id": "security-control/IAM.3",
+          "mode": "auto",
+          "finding_id": "live-test/20261007T012932/stale-keys-stale",
+          "resource_type": "AwsIamUser",
+          "account_id": "<member-a>",
+          "action_document": "remediation-orchestrator-DeactivateStaleAccessKeys",
+          "policy_id": "stale-access-keys",
+          "resource_arn": "arn:aws:iam::<member-a>:user/live-test-stale",
+          "severity_label": "MEDIUM",
+          "execution_id": "cd9ea03d-abc5-4f46-b850-f7ac39998bbf",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "executed",
+          "nist_controls": [
+            "IA-5(1)",
+            "AC-2(3)"
+          ],
+          "title": "IAM users' access keys should be rotated every 90 days or less",
+          "execution_ts": "2026-10-07T01:31:22.974352+00:00"
+        }
+      ],
+      "automation": {
+        "ran_in": "member-a",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-DeactivateStaleAccessKeys",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "DeactivateStaleKeys": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    },
+    "stale-keys-exempt": {
+      "finding_account": "member-a",
+      "ledger": [
+        {
+          "decided_by": "system",
+          "execution_status": "Success",
+          "generator_id": "security-control/IAM.3",
+          "mode": "auto",
+          "finding_id": "live-test/20261007T012932/stale-keys-exempt",
+          "resource_type": "AwsIamUser",
+          "account_id": "<member-a>",
+          "action_document": "remediation-orchestrator-DeactivateStaleAccessKeys",
+          "policy_id": "stale-access-keys",
+          "resource_arn": "arn:aws:iam::<member-a>:user/live-test-exempt",
+          "severity_label": "MEDIUM",
+          "execution_id": "087421aa-37fa-4837-93f9-cac5111647f5",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "executed",
+          "nist_controls": [
+            "IA-5(1)",
+            "AC-2(3)"
+          ],
+          "title": "IAM users' access keys should be rotated every 90 days or less",
+          "execution_ts": "2026-10-07T01:31:18.321460+00:00"
+        }
+      ],
+      "automation": {
+        "ran_in": "member-a",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-DeactivateStaleAccessKeys",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "DeactivateStaleKeys": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    },
+    "compromised-instance": {
+      "finding_account": "member-b",
+      "ledger": [
+        {
+          "decided_by": "system",
+          "execution_status": "Success",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "auto",
+          "finding_id": "live-test/20261007T012932/compromised-instance",
+          "resource_type": "AwsEc2Instance",
+          "account_id": "<member-b>",
+          "action_document": "remediation-orchestrator-IsolateCompromisedInstance",
+          "policy_id": "guardduty-compromised-instance",
+          "resource_arn": "arn:aws:ec2:us-east-1:<member-b>:instance/i-0957e380344f16f69",
+          "severity_label": "HIGH",
+          "execution_id": "6f01329d-ea14-47eb-863d-f69c372ac6d6",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "executed",
+          "nist_controls": [
+            "IR-4",
+            "SC-7"
+          ],
+          "title": "The EC2 instance is querying a domain name associated with a known command and control server",
+          "execution_ts": "2026-10-07T01:31:28.461651+00:00"
+        }
+      ],
+      "automation": {
+        "ran_in": "member-b",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-IsolateCompromisedInstance",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-b>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "IsolateInstance": "Success",
+          "CheckIfShouldStop": "Success",
+          "NotifyStep": "Success",
+          "StopInstanceStep": "Pending"
+        }
+      }
+    },
+    "approval-denied": {
+      "finding_account": "member-a",
+      "ledger": [
+        {
+          "decided_by": "human (approval link)",
+          "execution_status": "",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "approval_required",
+          "finding_id": "live-test/20261007T012932/approval-denied",
+          "resource_type": "AwsIamAccessKey",
+          "action_document": "remediation-orchestrator-RevokeRoleSessions",
+          "account_id": "<member-a>",
+          "policy_id": "guardduty-role-credential-exfiltration",
+          "resource_arn": "AWS::IAM::AccessKey:ASIALIVETESTEXAMPLE",
+          "severity_label": "HIGH",
+          "execution_id": "",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "denied",
+          "nist_controls": [
+            "AC-2",
+            "IR-4",
+            "IA-5"
+          ],
+          "title": "Live test: role credentials used from outside AWS (approval-denied)",
+          "execution_ts": "2026-10-07T01:31:15.400163+00:00"
+        }
+      ]
+    },
+    "approval-timeout": {
+      "finding_account": "member-a",
+      "ledger": [
+        {
+          "decided_by": "system (approval timed out)",
+          "execution_status": "",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "approval_required",
+          "finding_id": "live-test/20261007T012932/approval-timeout",
+          "resource_type": "AwsIamAccessKey",
+          "account_id": "<member-a>",
+          "action_document": "remediation-orchestrator-RevokeRoleSessions",
+          "policy_id": "guardduty-role-credential-exfiltration",
+          "resource_arn": "AWS::IAM::AccessKey:ASIALIVETESTEXAMPLE",
+          "severity_label": "HIGH",
+          "execution_id": "",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "denied",
+          "nist_controls": [
+            "AC-2",
+            "IR-4",
+            "IA-5"
+          ],
+          "title": "Live test: role credentials used from outside AWS (approval-timeout)",
+          "execution_ts": "2026-10-07T01:41:12.856525+00:00"
+        }
+      ]
+    }
+  },
+  "resource_state_after": {
+    "users": {
+      "compromised": {
+        "access_keys": [
+          "Inactive"
+        ],
+        "tags": [
+          "CompromisedCredentials",
+          "RemediationFindingId"
+        ]
+      },
+      "stale": {
+        "access_keys": [
+          "Inactive"
+        ],
+        "tags": []
+      },
+      "exempt": {
+        "access_keys": [
+          "Active"
+        ],
+        "tags": [
+          "break-glass"
+        ]
+      }
+    },
+    "victim_role_inline_policies": [],
+    "instance": {
+      "state": "running",
+      "tags": [
+        "IsolatedForIR",
+        "IsolationFindingId",
+        "Name"
+      ],
+      "security_groups_before": [
+        "default"
+      ],
+      "security_groups_after": [
+        {
+          "tags": {
+            "Purpose": "incident-response-isolation"
+          },
+          "ingress_rules": 0,
+          "egress_rules": 0
+        }
+      ],
+      "snapshots": [
+        {
+          "state": "completed",
+          "volume_gb": 8
+        }
+      ]
+    },
+    "deny_link_response": {
+      "status": 200,
+      "body": "Denied. The remediation will not run."
+    }
+  }
+}

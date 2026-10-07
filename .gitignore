@@ -38,4 +38,6 @@ __pycache__/
 # examples/org-mode/live_test.py working files
 .live-test-state.json
 live-test-evidence.json
+.live-test-playbooks-state.json
+live-test-playbooks-evidence.json
 *.tfplan
