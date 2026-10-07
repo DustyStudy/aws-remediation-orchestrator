@@ -83,15 +83,19 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
 
 def _maybe_trip_breaker(policy_id: str, max_per_hour: int) -> None:
-    """Best-effort: a second rate-limit read to see how far over we are.
+    """Best-effort: count this blocked attempt and trip the breaker once
+    the hour's total reaches ``CIRCUIT_BREAKER_MULTIPLIER`` times the limit.
+
+    ``check_rate_limit`` stops incrementing at ``max_per_hour``, so the call
+    below repeats it with a ceiling high enough to keep counting. That
+    increment is what lets the total climb past the limit at all.
     Never blocks the guardrail decision above if this fails.
     """
     try:
         over_by = guardrails.check_rate_limit(
             _dynamodb, RATE_LIMIT_TABLE_NAME, policy_id, max_per_hour * 1000
         )
-        count = int((over_by.reason or "count=0").split("=")[1].split("/")[0])
-        if count >= max_per_hour * CIRCUIT_BREAKER_MULTIPLIER:
+        if (over_by.count or 0) >= max_per_hour * CIRCUIT_BREAKER_MULTIPLIER:
             guardrails.trip_circuit_breaker(_ssm, PAUSE_PARAMETER_NAME, PAUSE_PARAMETER_KMS_KEY_ID)
     except Exception as exc:  # noqa: BLE001 - guardrail tripping must never block the guardrail decision itself
         print(f"WARN: circuit-breaker check for policy {policy_id!r} failed, leaving breaker as-is: {exc}")

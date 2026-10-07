@@ -81,6 +81,7 @@ def test_rate_limit_allows_under_threshold():
     result = guardrails.check_rate_limit(client, "table", "policy-1", max_per_hour=10)
     assert result.allowed is True
     assert result.reason == "count=3/10"
+    assert result.count == 3
 
 
 def test_rate_limit_blocks_over_threshold():

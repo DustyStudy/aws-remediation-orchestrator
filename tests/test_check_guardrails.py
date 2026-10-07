@@ -69,3 +69,21 @@ def test_account_that_is_not_onboarded_is_blocked_without_spending_rate_limit(ha
     assert result["guardrail_result"] == {"allowed": False, "reason": "account_not_onboarded"}
     handler._dynamodb.update_item.assert_not_called()
     handler._sts.assume_role.assert_not_called()
+
+
+def test_blocked_attempts_trip_the_breaker_at_the_multiplier(handler):
+    class ConditionalCheckFailedException(Exception):
+        pass
+
+    handler._dynamodb.exceptions.ConditionalCheckFailedException = ConditionalCheckFailedException
+    # First call is the real check and is over the limit. The second is the
+    # breaker's own count, which reports 3x the policy's 20 per hour.
+    handler._dynamodb.update_item.side_effect = [
+        ConditionalCheckFailedException(),
+        {"Attributes": {"count": {"N": "60"}}},
+    ]
+
+    result = handler.handler({"finding": finding("111111111111"), "policy": POLICY}, Context())
+
+    assert result["guardrail_result"]["allowed"] is False
+    handler._ssm.put_parameter.assert_called_once()
