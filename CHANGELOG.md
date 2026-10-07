@@ -6,6 +6,8 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-06
+
 ### Added
 - Third live run (`examples/org-mode/live_test_playbooks.py`):
   `DisableCompromisedCredentials`, `DeactivateStaleAccessKeys` and
@@ -133,6 +135,7 @@ Found during the real-account run in `docs/PROOF.md`:
 - The KMS key policy did not allow the Step Functions and API Gateway log
   groups, so their creation failed.
 
-[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/releases/tag/v1.0.0
