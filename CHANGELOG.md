@@ -7,6 +7,14 @@ follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Third live run (`examples/org-mode/live_test_playbooks.py`):
+  `DisableCompromisedCredentials`, `DeactivateStaleAccessKeys` and
+  `IsolateCompromisedInstance` run in member accounts against real IAM
+  users and a running instance, plus a denied and a timed-out approval in
+  org mode. Every claim held; no code change was needed
+  (`docs/PROOF.md`). The org-mode example now passes
+  `approval_timeout_seconds`, `stale_key_max_age_days` and
+  `stale_key_exempt_tag_key` through to the module.
 - Org mode. Set `org_member_account_ids` on a deployment in the Security
   Hub delegated administrator account and a playbook for a member
   account's finding runs in that account: `execute_remediation` assumes a
