@@ -29,6 +29,7 @@ DENYLIST_TAG_KEY = "do-not-remediate"
 class GuardrailResult:
     allowed: bool
     reason: str | None = None
+    count: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {"allowed": self.allowed, "reason": self.reason}
@@ -93,7 +94,7 @@ def check_rate_limit(
         return GuardrailResult(allowed=False, reason="rate_limit_exceeded")
 
     count = int(response["Attributes"]["count"]["N"])
-    return GuardrailResult(allowed=True, reason=f"count={count}/{max_per_hour}")
+    return GuardrailResult(allowed=True, reason=f"count={count}/{max_per_hour}", count=count)
 
 
 def check_resource_denylist(tagging_client: Any, resource_arn: str) -> GuardrailResult:
