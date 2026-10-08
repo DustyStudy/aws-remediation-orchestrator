@@ -6,6 +6,15 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- `open_ingress_revoke_ports` now includes 4000 (LiteLLM proxy) and 11434
+  (Ollama) by default, so `RevokeOpenSshRdpIngress` closes self-hosted AI
+  servers opened to `0.0.0.0/0` or `::/0`. Remove them from the variable
+  to keep the old behavior.
+- `terraform.tfvars.example` routes Security Hub control EC2.18
+  (unrestricted ingress on unauthorized ports) to the same playbook.
+  EC2.19 does not report these two ports.
+
 ## [1.2.0] - 2026-10-06
 
 ### Added

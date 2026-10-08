@@ -90,6 +90,23 @@ policy_registry_seed = {
     description           = "Revokes internet-wide database and remote-administration ingress. Same playbook as open-ssh."
   }
 
+  # Security Hub control EC2.18 (any port other than the authorized ones,
+  # 80 and 443 by default, open to the internet). EC2.19 has a fixed port
+  # list that leaves out LiteLLM (4000) and Ollama (11434), so this is the
+  # control that reports them. The playbook still closes only the ports in
+  # open_ingress_revoke_ports and leaves every other rule alone.
+  open-unauthorized-ports = {
+    match_field           = "generator_id"
+    match_value           = "security-control/EC2.18"
+    mode                  = "auto"
+    action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
+    action_document_owner = "self"
+    nist_controls         = ["SC-7", "AC-4", "CM-7"]
+    max_actions_per_hour  = 20
+    severity_threshold    = "MEDIUM"
+    description           = "Revokes internet-wide ingress to self-hosted AI server ports and the other ports in open_ingress_revoke_ports. Same playbook as open-ssh."
+  }
+
   # Security Hub control IAM.3 (keys not rotated in 90 days).
   stale-access-keys = {
     match_field           = "generator_id"

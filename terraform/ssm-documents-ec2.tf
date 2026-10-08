@@ -16,7 +16,7 @@ resource "aws_ssm_document" "revoke_open_ssh_rdp" {
 
   content = yamlencode({
     schemaVersion = "0.3"
-    description   = "Revokes security group ingress rules that open a risky port (SSH, RDP and database ports by default) to 0.0.0.0/0 or ::/0."
+    description   = "Revokes security group ingress rules that open a risky port (SSH, RDP, database and AI server ports by default) to 0.0.0.0/0 or ::/0."
     assumeRole    = "{{ AutomationAssumeRole }}"
     parameters = {
       ResourceArn = {
