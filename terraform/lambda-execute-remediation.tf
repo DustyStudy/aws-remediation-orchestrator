@@ -7,14 +7,7 @@ data "archive_file" "execute_remediation" {
 resource "aws_iam_role" "execute_remediation" {
   name = "${local.name_prefix}-execute-remediation-role"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
+  assume_role_policy = local.lambda_assume_role_policy
 }
 
 locals {

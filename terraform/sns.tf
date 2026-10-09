@@ -15,6 +15,16 @@ resource "aws_sns_topic_policy" "notifications" {
       Principal = { AWS = "${local.arn_prefix}:iam::${local.account_id}:root" }
       Action    = "sns:Publish"
       Resource  = aws_sns_topic.notifications.arn
+      }, {
+      Sid       = "AllowWorkflowAlarms"
+      Effect    = "Allow"
+      Principal = { Service = "cloudwatch.amazonaws.com" }
+      Action    = "sns:Publish"
+      Resource  = aws_sns_topic.notifications.arn
+      Condition = {
+        StringEquals = { "aws:SourceAccount" = local.account_id }
+        ArnLike      = { "aws:SourceArn" = "${local.arn_prefix}:cloudwatch:${local.region}:${local.account_id}:alarm:${local.name_prefix}-Executions*" }
+      }
       }], local.org_mode ? [{
       # Org mode: playbooks running in a member account report here too.
       Sid       = "AllowMemberPlaybookPublish"

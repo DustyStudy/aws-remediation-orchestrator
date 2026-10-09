@@ -1,5 +1,10 @@
 # Proof that aws-remediation-orchestrator works
 
+> Historical deployment evidence. These runs predate the IAM-authenticated POST
+> approval flow and batch Map processing. Email clicks described below refer to
+> that older version; use [OPERATIONS.md](OPERATIONS.md) for current submissions
+> and upgrades. The new paths have not yet been live-verified in these reports.
+
 Three live runs against real AWS accounts, each checked against AWS's own
 records (Step Functions history, DynamoDB, SSM Automation, CloudTrail)
 rather than only the tool's output. Account IDs are masked.

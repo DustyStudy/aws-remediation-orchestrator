@@ -1,37 +1,38 @@
-"""State machine step 1: parse the incoming EventBridge/Security Hub event.
-
-Input: the raw EventBridge event for an "Security Hub Findings - Imported"
-rule (``event["detail"]["findings"]`` is a list; Security Hub batches, we
-process the first finding in the batch - see docs/ARCHITECTURE.md for why
-the EventBridge rule targets a single-finding Step Functions execution
-rather than fanning the batch out itself).
-
-Output: the normalized finding dict (remediation_common.asff.normalize),
-or a ``{"skip": True, "skip_reason": ...}`` marker the state machine's
-first Choice state routes straight to RecordSkipped.
-"""
+"""Normalize every finding for the bounded Map state, retaining rejected inputs."""
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Any
 
 from remediation_common import asff
 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    findings = event.get("detail", {}).get("findings", [])
-    if not findings:
-        return {"skip": True, "skip_reason": "no_findings_in_event"}
-
-    try:
-        normalized = asff.normalize(findings[0])
-    except asff.MalformedFindingError as exc:
-        return {"skip": True, "skip_reason": f"malformed_finding: {exc}"}
-
-    if not asff.should_process(normalized):
-        return {
-            "skip": True,
-            "skip_reason": "not_active_or_already_triaged",
-            "finding": normalized,
-        }
-
-    return {"skip": False, "finding": normalized}
+    detail = event.get("detail")
+    findings = detail.get("findings") if isinstance(detail, dict) else None
+    if not isinstance(findings, list) or not findings:
+        findings = [None]
+    event_id = event.get("id") or hashlib.sha256(
+        json.dumps(event, sort_keys=True).encode()
+    ).hexdigest()
+    results = []
+    for index, finding in enumerate(findings):
+        try:
+            normalized = asff.normalize(finding)
+            skip = not asff.should_process(normalized)
+            reason = "not_active_or_already_triaged" if skip else None
+        except (asff.MalformedFindingError, TypeError, AttributeError, IndexError):
+            # Do not retain attacker-controlled payloads or exception details.
+            normalized = {
+                "finding_id": f"rejected:{event_id}:{index}", "title": "Rejected finding input",
+                "account_id": str(event.get("account") or "unknown"),
+                "region": str(event.get("region") or "unknown"), "resource_arn": "",
+                "resource_type": "Other", "generator_id": "input-validation", "severity_label": "INFORMATIONAL",
+            }
+            skip, reason = True, "malformed_finding_or_empty_batch"
+        results.append({
+            "skip": skip, "finding": normalized,
+            "guardrail_result": {"allowed": False if skip else None, "reason": reason},
+        })
+    return {"findings": results}

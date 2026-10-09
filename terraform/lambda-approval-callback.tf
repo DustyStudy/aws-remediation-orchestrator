@@ -7,14 +7,7 @@ data "archive_file" "approval_callback" {
 resource "aws_iam_role" "approval_callback" {
   name = "${local.name_prefix}-approval-callback-role"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
+  assume_role_policy = local.lambda_assume_role_policy
 }
 
 resource "aws_iam_role_policy" "approval_callback" {
@@ -38,7 +31,7 @@ resource "aws_iam_role_policy" "approval_callback" {
         # SendTaskSuccess/Failure address a task by its token, not an ARN -
         # IAM has no resource-level scoping for these actions.
         Effect   = "Allow"
-        Action   = ["states:SendTaskSuccess", "states:SendTaskFailure"]
+        Action   = ["states:SendTaskSuccess"]
         Resource = "*"
       },
       {

@@ -1,9 +1,4 @@
-# Ingestion: every Security Hub finding import starts one state machine
-# execution per finding in the batch isn't fanned out here - Security Hub
-# typically batches a handful of findings per event, and
-# normalize_finding.handler processes only the first; see
-# docs/ARCHITECTURE.md for why (and the fan-out alternative) if your
-# finding volume needs it.
+# Each event starts one execution; its Map state processes every finding.
 
 resource "aws_cloudwatch_event_rule" "security_hub_findings" {
   name        = "${local.name_prefix}-security-hub-findings"

@@ -1,7 +1,7 @@
 """The remediation audit ledger, and its export into GRC evidence format.
 
-Every execution of the state machine - allowed or blocked, auto or
-approved, succeeded or failed - writes exactly one ledger item. That item
+Each handled finding outcome is written to the ledger. Workflow alarms cover
+failures that prevent ledger delivery; event redelivery is not deduplicated. That item
 is the system's audit trail, and ``build_evidence_document`` below is what
 turns a batch of them into a document shaped for
 `grc-evidence-automation <https://github.com/DustyStudy/grc-evidence-automation>`_

@@ -1,120 +1,103 @@
 # Architecture
 
-## Flow
-
-```
-Security Hub finding (GuardDuty / Config / Inspector / Macie / Access
-Analyzer / third-party, all normalized to ASFF)
-        │
-        ▼
-EventBridge rule (aws.securityhub, ACTIVE + NEW/NOTIFIED findings)
-        │
-        ▼
-┌─────────────────────────── Step Functions: remediation-orchestrator ───────────────────────────┐
-│                                                                                                   │
-│  NormalizeFinding ──▶ CheckSkip ──▶ LookupPolicy ──▶ CheckGuardrails ──▶ GuardrailChoice         │
-│  (parse ASFF)         (malformed/    (policy         (circuit breaker,    │                      │
-│                        already-       registry        rate limit,        ├─ blocked ─▶ RecordBlocked
-│                        triaged        match)          resource           │
-│                        → skip)                        denylist)          ▼                      │
-│                                                                       ModeChoice                 │
-│                                                          ┌────────────────┼────────────────┐      │
-│                                                          ▼                ▼                ▼      │
-│                                                       ignore           dry_run      approval_required
-│                                                          │                │                │      │
-│                                                          ▼                ▼                ▼      │
-│                                                    RecordIgnored   RecordDryRun    RequestApproval │
-│                                                                                     (waitForTaskToken,│
-│                                                                                      SNS email link) │
-│                                                                                          │          │
-│                                                          ┌───────────────────┬───────────┴──────┐   │
-│                                                          ▼ approved          ▼ denied     ▼ timeout │
-│                                                   ExecuteRemediation   RecordDenied   RecordDenied  │
-│                                                   (SSM Automation,                                  │
-│                                                    polled to                                        │
-│                                                    completion)                                      │
-│                                                          │                                          │
-│                                                          ▼                                          │
-│                                                   RecordExecuted / RecordExecutionFailed             │
-│                                                                                                       │
-└───────────────────────────────────────────────────────────────────────────────────────────────────┘
-        │
-        ▼
-DynamoDB remediation-ledger (every path above ends here - full audit trail)
-        │
-        ▼ (scheduled)
-export_evidence Lambda ──▶ S3 (grc-evidence-automation-shaped JSON)
+```mermaid
+flowchart TD
+  SH[Security Hub batch] --> N[Normalize every finding]
+  N --> M[Inline Map: at most five active findings]
+  M --> P[Policy lookup]
+  P --> G[Guardrails]
+  G --> D{Policy mode}
+  D -->|approval_required| A[Signed review link]
+  A --> I[IAM-authenticated POST]
+  I --> C{Decision}
+  C -->|approve| X[SSM remediation]
+  C -->|deny or timeout| L[Decision ledger]
+  D -->|auto| X
+  D -->|dry_run or ignore| L
+  G -->|blocked| L
+  X --> L
+  N -. rejected input .-> L
+  P -. failure .-> L
+  G -. failure .-> L
+  L --> E[Scheduled evidence export]
+  E --> S3[S3]
+  M -. unhandled failure .-> CW[Independent CloudWatch alarms]
 ```
 
-Every terminal state calls `record_ledger`, including the no-op paths
-(skipped, blocked, denied). The ledger is a complete decision log, not
-just a log of actions taken - that distinction matters for both
-debugging ("why didn't this fire?") and compliance evidence ("what did
-the system decide, and why?").
+## Batch and failure handling
+
+One EventBridge event starts one Standard workflow. The normalizer emits every
+finding in order. Invalid findings and empty envelopes become synthetic rejected
+records, so a malformed member does not silently discard a valid sibling.
+
+The inline Map runs at most five findings concurrently, including findings
+waiting for approval. Each finding follows the same policy, guardrail and
+ledger paths. Policy lookup, guardrail evaluation and approval-request errors
+are recorded as failed decisions. Playbook errors have their own failure path.
+
+Ledger calls retry with the state-entry timestamp as their stable record key.
+This prevents one state's delivery retries from creating fresh rows. Notifications
+can still be duplicated. Repeated events are separate executions; there is no
+claim of exactly-once remediation across redeliveries.
+
+A persistent ledger failure, normalization invocation failure, payload/history
+limit, or other unhandled workflow error can prevent ledger coverage and stop
+unfinished Map iterations. CloudWatch alarms on failed, timed-out and aborted
+executions publish independently of the ledger Lambda. This is a recovery
+signal, not a guarantee that every event always reaches the ledger.
+See [operations and upgrades](OPERATIONS.md).
+
+## Approval boundary
+
+GET on a signed email link only displays the request. POST requires API Gateway
+IAM authorization and the signature. Grant the designated operator role
+`execute-api:Invoke` on the `approval_invoke_arn` output; an existing Identity
+Center permission set can supply this permission.
+
+The callback records the IAM session ARN supplied by API Gateway. It does not
+accept an actor from a query parameter. The first decision and actor are
+immutable. The same actor may retry that decision after a transient delivery
+failure, but an opposing decision or different actor cannot replace it.
+
+Only an acknowledged Step Functions callback is marked consumed. Both approval
+and denial return structured results to the waiting state, which branches on
+the decision and carries the actor into the ledger. A closed token can mean
+expiry or prior completion; the endpoint reports that ambiguity and directs the
+operator to history instead of claiming success.
 
 ## Component responsibilities
 
 | Component | Responsibility |
 |---|---|
-| `normalize_finding` | Parse ASFF into the fields everything downstream needs |
-| `lookup_policy` | Match the finding against the policy registry (DynamoDB), apply the matched policy's severity floor |
-| `check_guardrails` | Circuit breaker, per-policy rate limit, resource tag denylist - see [POLICY_REGISTRY.md](POLICY_REGISTRY.md) |
-| `request_approval` / `approval_callback` | Human-in-the-loop gate for `approval_required` policies, via `waitForTaskToken` and a signed one-click email link |
-| `execute_remediation` | Starts and polls the policy's SSM Automation document |
-| `record_ledger` | Writes the audit trail; publishes the result notification |
-| `export_evidence` | Scheduled: rolls up the period's ledger entries into compliance evidence documents |
+| `normalize_finding` | Validate and normalize a batch; preserve rejected outcomes |
+| `lookup_policy` | Match the registry and apply the severity floor |
+| `check_guardrails` | Circuit breaker, hourly limits, onboarding and resource exemptions |
+| `request_approval` / `approval_callback` | Request a decision, authenticate its submission and resume the waiting task |
+| `execute_remediation` | Start and poll the SSM playbook |
+| `record_ledger` | Persist the outcome and notify |
+| `export_evidence` | Export ledger entries to S3 |
 
-## Playbooks and other deployments
+## Deliberate limits
 
-The repo owns six playbooks (`terraform/ssm-documents*.tf`). The
-policy registry, not the playbook, decides whether each one runs
-automatically, waits for approval, or only logs. A document owned by
-another deployment can be added via `external_ssm_document_arns` (see
-[POLICY_REGISTRY.md](POLICY_REGISTRY.md)), so every remediation goes
-through the same policy decision, blast-radius controls and audit trail,
-whichever repo built the playbook.
+- Polling stays inside the execution Lambda because the supplied playbooks make
+  short API sequences. Move long-running playbooks to a Step Functions
+  Wait/Choice loop before exceeding the Lambda's polling deadline.
+- Evidence export scans the small ledger. A date-bucketed index becomes useful
+  when measured volume justifies it.
+- Inline Maps share the Standard execution's history and payload limits.
+  For substantially larger batches or many long approvals, use separately
+  tracked child executions and measure concurrency before changing the design.
+- IAM proves the session that submitted a decision. Correct role assignment,
+  session-name attribution and offboarding remain the operator's responsibility.
+- If a callback response is lost after AWS accepts it, history is the source
+  of truth. Delivery retries do not guarantee an unambiguous HTTP success.
+- [Historical live proof](PROOF.md) predates the IAM POST and batch changes.
+  Unit tests and mocked Terraform tests do not prove live encrypted alarm
+  delivery, IAM authorization or cross-service availability.
 
-With `org_member_account_ids` set, a playbook for a finding from a member
-account runs in that account; see [ORG_MODE.md](ORG_MODE.md).
+## Other deployments
 
-Findings from tools outside AWS enter through Security Hub too. The
-optional `modules/wiz-finding-bridge` imports Wiz webhook deliveries as
-ASFF findings with a `wiz/` generator id.
-
-## Known limitations / deliberate scope cuts
-
-These are documented trade-offs, not oversights - each one is called out
-at the point in the code where it's made, and repeated here for
-visibility:
-
-- **Approval-link authentication.** The HMAC signature in an approval
-  link proves the link wasn't tampered with, not who clicked it. Anyone
-  who can read the SNS notification (everyone on a subscribed email
-  list, for example) can approve or deny. Production use should front
-  this with an identity-aware channel instead - Slack interactivity with
-  workspace auth, or an API Gateway JWT/IAM authorizer - rather than
-  relying on link secrecy alone. See
-  `terraform/lambda/approval_callback/handler.py`.
-- **In-process polling instead of a Wait+Choice loop.** `execute_remediation`
-  polls `get_automation_execution` inside a single Lambda invocation
-  (bounded by `POLL_TIMEOUT_SECONDS`) rather than using a Step Functions
-  Wait state + Choice loop. Correct and simpler for the playbooks this
-  repo ships (each makes a few API calls and finishes in seconds;
-  snapshots are started, not awaited); a playbook expected to run
-  long should move to the Wait+Choice pattern instead. See
-  `terraform/lambda/execute_remediation/handler.py`.
-- **Evidence export scans the ledger table** rather than querying a
-  date-bucketed GSI. Fine at the finding volume a single organization's
-  Security Hub actually produces; the first place to optimize if that
-  changes. See `terraform/lambda/export_evidence/handler.py`.
-- **One finding per Security Hub batch is processed.** Security Hub's
-  `Findings - Imported` event can contain more than one finding;
-  `normalize_finding` processes only the first. Fan-out (one Step
-  Functions execution per finding in the batch, via an EventBridge
-  Pipe or a fan-out Lambda ahead of the state machine) is the extension
-  point if your finding volume needs every finding in a batch handled
-  independently rather than relying on Security Hub re-delivering.
-- **Policy registry match values need environment-specific tuning.**
-  `terraform.tfvars.example`'s `match_field`/`match_value` pairs are
-  illustrative, not guaranteed ASFF strings for every account - see the
-  comment at the top of that file and [POLICY_REGISTRY.md](POLICY_REGISTRY.md).
+The registry can select one of the six owned playbooks or an explicitly
+authorized external SSM document. [Org mode](ORG_MODE.md) dispatches to roles
+in the finding's member account. The optional Wiz bridge imports ASFF into
+Security Hub, entering the same batch pipeline.

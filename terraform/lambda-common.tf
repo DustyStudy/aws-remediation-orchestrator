@@ -89,3 +89,14 @@ resource "aws_lambda_layer_version" "common" {
   compatible_runtimes = ["python3.12"]
   description         = "remediation_common: ASFF parsing, policy matching, guardrails, ledger/evidence building - shared by every function in this module."
 }
+
+locals {
+  lambda_assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
