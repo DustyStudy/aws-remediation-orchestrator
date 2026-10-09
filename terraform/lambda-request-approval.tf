@@ -7,14 +7,7 @@ data "archive_file" "request_approval" {
 resource "aws_iam_role" "request_approval" {
   name = "${local.name_prefix}-request-approval-role"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
+  assume_role_policy = local.lambda_assume_role_policy
 }
 
 resource "aws_iam_role_policy" "request_approval" {

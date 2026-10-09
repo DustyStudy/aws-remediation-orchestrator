@@ -31,7 +31,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     execution_id = event.get("execution_id")
     execution_status = event.get("execution_status")
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = event.get("timestamp") or datetime.now(timezone.utc).isoformat()
 
     item = ledger.build_ledger_item(
         finding=finding,

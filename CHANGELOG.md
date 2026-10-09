@@ -6,6 +6,23 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Normalize every finding in a batch and retain auditable rejected records.
+- Record policy, guardrail and approval-request failures; retry ledger writes
+  with a stable timestamp and alarm independently on workflow failures.
+- Reserve an immutable approval decision before delivery; retry the same
+  decision after transient callback errors without reopening opposing choices.
+
+### Security
+- **Breaking approval change:** GET links are read-only; submissions require
+  IAM-authenticated POST. Record the IAM actor on both approval and denial.
+  Drain existing executions before upgrading; see `docs/OPERATIONS.md`.
+
+### Maintenance
+- Share eight identical Lambda trust policies without moving resources.
+- Add Python regressions and mocked Terraform workflow tests.
+
+
 ### Changed
 - `open_ingress_revoke_ports` now includes 4000 (LiteLLM proxy) and 11434
   (Ollama) by default, so `RevokeOpenSshRdpIngress` closes self-hosted AI

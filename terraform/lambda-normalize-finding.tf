@@ -7,14 +7,7 @@ data "archive_file" "normalize_finding" {
 resource "aws_iam_role" "normalize_finding" {
   name = "${local.name_prefix}-normalize-finding-role"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
+  assume_role_policy = local.lambda_assume_role_policy
 }
 
 resource "aws_iam_role_policy" "normalize_finding" {

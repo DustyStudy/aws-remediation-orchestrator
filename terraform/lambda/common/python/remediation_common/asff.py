@@ -21,6 +21,15 @@ def normalize(finding: dict[str, Any]) -> dict[str, Any]:
     subset of fields the policy registry, guardrails, and ledger actually
     key on. Extend it as new policies need more signal.
     """
+    if not isinstance(finding, dict):
+        raise MalformedFindingError("finding must be an object")
+    for field in ("Id", "ProductArn", "Title", "GeneratorId", "AwsAccountId"):
+        if not isinstance(finding.get(field), str) or not finding[field].strip():
+            raise MalformedFindingError(f"finding requires a nonempty string: {field}")
+    for field, item_type in (("Types", str), ("Resources", dict)):
+        values = finding.get(field) or []
+        if not isinstance(values, list) or not all(isinstance(item, item_type) for item in values):
+            raise MalformedFindingError(f"invalid {field} list")
     try:
         finding_id = finding["Id"]
         product_arn = finding["ProductArn"]

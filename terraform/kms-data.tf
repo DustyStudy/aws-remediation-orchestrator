@@ -20,6 +20,17 @@ resource "aws_kms_key" "data" {
         Action    = "kms:*"
         Resource  = "*"
       },
+      {
+        Sid       = "AllowWorkflowAlarms"
+        Effect    = "Allow"
+        Principal = { Service = "cloudwatch.amazonaws.com" }
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey*"]
+        Resource  = "*"
+        Condition = {
+          StringEquals = { "aws:SourceAccount" = local.account_id }
+          ArnLike      = { "aws:SourceArn" = "${local.arn_prefix}:cloudwatch:${local.region}:${local.account_id}:alarm:${local.name_prefix}-Executions*" }
+        }
+      },
       ], local.org_mode ? [
       {
         # Org mode: a member account's playbook roles publish to the

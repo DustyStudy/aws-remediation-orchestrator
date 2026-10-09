@@ -38,7 +38,7 @@ flowchart TB
     N["Normalize ASFF"] --> P["Look up policy<br/>DynamoDB registry"]
     P --> G{"Guardrails<br/>circuit breaker, rate limit,<br/>do-not-remediate tag"}
     G -- pass --> M{"Policy mode"}
-    M -- approval_required --> A["Email signed link<br/>waitForTaskToken"]
+    M -- approval_required --> A["Review link + IAM POST<br/>waitForTaskToken"]
     M -- auto --> X["Run SSM Automation playbook"]
     A -- approved --> X
   end
@@ -49,8 +49,9 @@ flowchart TB
   LEDGER --> EXPORT --> S3
 ```
 
-Every path ends in the ledger, including findings that were blocked, ignored
-or denied, so it records what the system decided as well as what it did.
+Every finding in a batch follows the policy pipeline, with up to five active
+findings at once. Decisions and handled failures are written to the ledger;
+independent workflow alarms cover failures that prevent ledger delivery.
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) has the full state list and
 the known limitations.
 
@@ -64,7 +65,7 @@ A **policy registry**, not each playbook's own code, decides whether a
 match runs automatically, waits for a human, only logs what it would do,
 or is ignored. A **circuit breaker and per-policy rate limit** cap how
 much damage a misconfigured detector (or this system itself) can do.
-Every decision, acted on or not, lands in an **audit ledger** that
+Decisions and handled failures are written to an **audit ledger** that
 exports as compliance evidence. It ships six playbooks and can dispatch
 to a playbook owned by another deployment via
 `external_ssm_document_arns`. See
@@ -76,7 +77,7 @@ to a playbook owned by another deployment via
 |---|---|
 | **Policy registry** (DynamoDB) | Matches a finding's ASFF type/generator against rules that set mode, target playbook, NIST 800-53 mapping, and rate limit. See [`docs/POLICY_REGISTRY.md`](docs/POLICY_REGISTRY.md). |
 | **Guardrails** | Org-wide circuit breaker (one SSM parameter), per-policy hourly rate limit with auto-trip on a detector storm, and a generic `do-not-remediate` resource tag denylist (Resource Groups Tagging API - works across resource types with no per-service code). |
-| **Approval flow** | `approval_required` policies pause the state machine (`waitForTaskToken`) and email signed one-click approve/deny links; a timeout with no response is treated as a deny. |
+| **Approval flow** | `approval_required` policies pause the state machine (`waitForTaskToken`) and email signed review links; decisions require an IAM-authenticated POST; a timeout with no response is treated as a deny. |
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
 | **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, or failed - with the guardrail result and NIST control mapping that produced it. |
 | **Evidence export** (S3, scheduled) | Rolls the ledger up into [`grc-evidence-automation`](https://github.com/DustyStudy/grc-evidence-automation)-shaped JSON documents. See [`docs/EVIDENCE_SCHEMA.md`](docs/EVIDENCE_SCHEMA.md). |
@@ -98,6 +99,13 @@ The suggested mode is what `terraform.tfvars.example` seeds.
 | `DeactivateStaleAccessKeys` | Deactivates only the user's keys older than 90 days or unused for 45 (Security Hub IAM.3 / IAM.22). | `approval_required` |
 | `RevokeRoleSessions` | Adds the `AWSRevokeOlderSessions` deny (same as the console's "Revoke active sessions") to the role in a GuardDuty credential finding, so stolen role credentials stop working. New sessions still work. | `approval_required` |
 | `IsolateCompromisedInstance` | Snapshots the instance's volumes, then moves every network interface to a per-VPC isolation security group with no inbound or outbound rules. Can also stop it. | `approval_required` |
+
+## Operating approvals and recovering failures
+
+[Operations and upgrade guide](docs/OPERATIONS.md) covers approver permissions,
+authenticated submissions, delivery recovery, alarms and draining existing
+executions before upgrading. The historical live runs below predate these
+approval and batch changes; current regression checks are separate evidence.
 
 ## Quickstart
 
@@ -152,7 +160,7 @@ walks through the approval path as well.
 ```bash
 pip install -r requirements-dev.txt
 pytest tests/ -q          # remediation_common, playbook scripts, Wiz bridge
-ruff check terraform tests
+ruff check terraform tests scripts
 ```
 
 CI (`.github/workflows/lint-and-scan.yml`) runs pytest/ruff, plus

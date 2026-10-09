@@ -1,12 +1,11 @@
 """Signing/verification for the human-approval callback links.
 
-The approval SNS message includes one-click approve/deny links. Rather than
+The approval SNS message includes signed review links. Rather than
 putting the raw Step Functions task token in the URL (long, and a bearer
 credential on its own), we store the token in DynamoDB under a short random
 ``approval_id`` and put only that id plus an HMAC signature in the link.
 The signature stops anyone from guessing or tampering with an approval_id;
-it is not a substitute for a real identity check on who clicked - see the
-"Known limitations" note in docs/ARCHITECTURE.md.
+submission also requires an IAM-authenticated POST. See docs/OPERATIONS.md.
 """
 from __future__ import annotations
 

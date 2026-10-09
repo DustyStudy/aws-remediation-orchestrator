@@ -1,8 +1,5 @@
-# Minimal HTTP API fronting approval_callback: a single GET route for the
-# approve/deny links in the approval SNS notification. No auth on the
-# route itself - the HMAC signature in the link is what's checked, inside
-# the Lambda (see approval_callback/handler.py's docstring for the known
-# limitation this implies).
+# Signed GET links only review a request. Decisions require an IAM-signed
+# POST, authorized by the approver's existing role or Identity Center session.
 
 resource "aws_apigatewayv2_api" "approvals" {
   name          = "${local.name_prefix}-approvals"
@@ -50,16 +47,17 @@ resource "aws_apigatewayv2_integration" "approval_callback" {
 }
 
 resource "aws_apigatewayv2_route" "decision" {
-  # checkov:skip=CKV_AWS_309: intentionally no IAM/JWT authorizer on this
-  # route - it's meant to be reachable from an email link with no signed-in
-  # session behind it. approval_callback/handler.py verifies an HMAC
-  # signature on the query string instead; see that file's docstring for
-  # the known limitation this implies (the signature proves the link
-  # wasn't tampered with, not who clicked it) and docs/ARCHITECTURE.md for
-  # how to harden this further.
+  # checkov:skip=CKV_AWS_309: read-only review of an HMAC-signed link; the separate POST route requires IAM.
   api_id    = aws_apigatewayv2_api.approvals.id
   route_key = "GET /decision"
   target    = "integrations/${aws_apigatewayv2_integration.approval_callback.id}"
+}
+
+resource "aws_apigatewayv2_route" "submit_decision" {
+  api_id             = aws_apigatewayv2_api.approvals.id
+  route_key          = "POST /decision"
+  authorization_type = "AWS_IAM"
+  target             = "integrations/${aws_apigatewayv2_integration.approval_callback.id}"
 }
 
 resource "aws_lambda_permission" "allow_api_gateway" {

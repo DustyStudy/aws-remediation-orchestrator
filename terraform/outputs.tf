@@ -33,6 +33,11 @@ output "approvals_endpoint" {
   description = "The approve/deny callback URL embedded in approval-request notifications."
 }
 
+output "approval_invoke_arn" {
+  value       = "${aws_apigatewayv2_api.approvals.execution_arn}/$default/POST/decision"
+  description = "Grant execute-api:Invoke on this ARN to the designated approver role or permission set."
+}
+
 output "playbook_document_names" {
   value = {
     s3_public_access_remediation    = aws_ssm_document.s3_public_access_remediation.name
