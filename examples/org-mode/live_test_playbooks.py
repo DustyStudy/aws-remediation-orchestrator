@@ -9,7 +9,7 @@ covers what that script leaves out:
 
     python live_test_playbooks.py setup   --hub P --member-a P --member-b P [--management P]
     python live_test_playbooks.py send    ...   # the three playbooks, plus the two approval requests
-    python live_test_playbooks.py deny    ...   # opens the Deny link of the first request
+    python live_test_playbooks.py deny    ...   # submits the Deny link of the first request
     python live_test_playbooks.py collect ...   # after approval_timeout_seconds; writes the evidence file
     python live_test_playbooks.py cleanup ...
 
@@ -32,13 +32,22 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 import time
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 import live_test
-from live_test import VICTIM_ROLE, Account, ledger_entries
+from live_test import (
+    VICTIM_ROLE,
+    Account,
+    finding_results,
+    resolve_findings,
+    write_evidence,
+)
+
+sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
+import decide
 
 STATE = Path(__file__).with_name(".live-test-playbooks-state.json")
 EVIDENCE = Path(__file__).with_name("live-test-playbooks-evidence.json")
@@ -122,6 +131,11 @@ def setup(hub, a, b, management):
     RUN["instance_groups_before"] = [g["GroupName"] for g in instance["SecurityGroups"]]
     print(f"launched {RUN['instance']} in {b.label} with {RUN['instance_groups_before']}")
 
+    subscribe_queue(hub)
+
+
+def subscribe_queue(hub):
+    """Read approval requests from a queue, so the test does not depend on an inbox."""
     sqs = hub.client("sqs")
     topic = outputs()["notification_topic_arn"]
     queue_url = sqs.create_queue(QueueName=QUEUE)["QueueUrl"]
@@ -169,46 +183,32 @@ def send(_hub, a, b, _management):
     print("Run deny next. The timed-out request needs approval_timeout_seconds before collect.")
 
 
-def deny(hub, _a, _b, _management):
-    """Open the Deny link of the approval-denied request, as the person reading the message would."""
+def approval_links(hub, name):
+    """The signed links from the approval request for the finding called ``name``."""
     sqs = hub.client("sqs")
     deadline = time.time() + 300
     while time.time() < deadline:
         for message in sqs.receive_message(
                 QueueUrl=RUN["queue_url"], MaxNumberOfMessages=10, WaitTimeSeconds=20).get("Messages", []):
             body = json.loads(message["Body"])
-            link = re.search(r"Deny:\s+(\S+)", body.get("Message", ""))
-            if link and "(approval-denied)" in body.get("Subject", "") + body["Message"]:
-                with urllib.request.urlopen(link.group(1), timeout=30) as response:
-                    RUN["deny_response"] = {"status": response.status, "body": response.read().decode()[:300]}
-                print(f"opened the Deny link: HTTP {response.status}")
-                return
-    raise SystemExit("no approval request for approval-denied arrived in five minutes")
+            links = dict(re.findall(r"(Approve|Deny):\s+(\S+)", body.get("Message", "")))
+            if links and f"({name})" in body.get("Subject", "") + body["Message"]:
+                return {"approve": links["Approve"], "deny": links["Deny"], "requested_at": body["Timestamp"]}
+    raise SystemExit(f"no approval request for {name} arrived in five minutes")
+
+
+def deny(hub, _a, _b, _management):
+    """Submit the Deny link of the approval-denied request with the hub profile's IAM identity."""
+    link = approval_links(hub, "approval-denied")["deny"]
+    status, body = decide.submit(link, hub.session.get_credentials().get_frozen_credentials())
+    RUN["deny_response"] = {"status": status, "body": body[:300]}
+    print(f"submitted the Deny link: HTTP {status}")
 
 
 def collect(hub, a, b, _management):
     accounts = {x.label: x for x in (hub, a, b)}
     out = outputs()
-    results = {}
-    for name, finding in RUN["findings"].items():
-        owner = accounts[finding["account"]]
-        entries = ledger_entries(hub, out["ledger_table"], finding["id"], wait_seconds=180)
-        result = {"finding_account": owner.label, "ledger": entries}
-        for entry in entries:
-            if entry.get("execution_id"):
-                # Looked up with the finding account's own credentials: the
-                # automation exists there only if it ran there.
-                execution = owner.client("ssm").get_automation_execution(
-                    AutomationExecutionId=entry["execution_id"])["AutomationExecution"]
-                result["automation"] = {
-                    "ran_in": owner.label,
-                    "document": execution["DocumentName"],
-                    "status": execution["AutomationExecutionStatus"],
-                    "executed_by": execution["ExecutedBy"],
-                    "steps": {s["StepName"]: s["StepStatus"] for s in execution["StepExecutions"]},
-                }
-        results[name] = result
-        print(name, [(e["policy_id"], e["outcome"], e.get("decided_by")) for e in entries] or "NO LEDGER ENTRY")
+    results = finding_results(hub, accounts, out["ledger_table"], detail="decided_by")
 
     iam = a.client("iam")
     users = {
@@ -241,23 +241,12 @@ def collect(hub, a, b, _management):
 
     evidence = {"run_id": RUN["run_id"], "accounts": {x.label: x.id for x in accounts.values()},
                 "findings": results, "resource_state_after": state_after}
-    text = json.dumps(evidence, indent=2, default=str)
-    for account in accounts.values():  # account IDs never go in the repo
-        text = text.replace(account.id, f"<{account.label}>")
-    assert not re.search(r"\b\d{12}\b", text), "unmasked account ID in evidence"
-    EVIDENCE.write_text(text, encoding="utf-8")
-    print(f"wrote {EVIDENCE}")
+    write_evidence(EVIDENCE, evidence, accounts)
 
 
 def cleanup(hub, a, b, management):
     accounts = {x.label: x for x in (hub, a, b)}
-    for finding in RUN.get("findings", {}).values():
-        owner = accounts[finding["account"]]
-        owner.client("securityhub").batch_update_findings(
-            FindingIdentifiers=[{
-                "Id": finding["id"],
-                "ProductArn": f"arn:{owner.partition}:securityhub:{owner.region}:{owner.id}:product/{owner.id}/default"}],
-            Workflow={"Status": "RESOLVED"}, Note={"Text": "live test cleanup", "UpdatedBy": "live_test_playbooks.py"})
+    resolve_findings(accounts, "live_test_playbooks.py")
 
     if RUN.get("stack_set"):
         cloudformation = management.client("cloudformation")

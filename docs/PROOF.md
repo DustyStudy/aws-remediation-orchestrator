@@ -1,14 +1,18 @@
 # Proof that aws-remediation-orchestrator works
 
-> Historical deployment evidence. These runs predate the IAM-authenticated POST
-> approval flow and batch Map processing. Email clicks described below refer to
-> that older version; use [OPERATIONS.md](OPERATIONS.md) for current submissions
-> and upgrades. The new paths have not yet been live-verified in these reports.
+> Runs 1 to 3 predate the IAM-authenticated POST approval flow and batch Map
+> processing; the email clicks they describe refer to that older version.
+> Run 4 covers the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
+> submissions and upgrades.
 
-Three live runs against real AWS accounts, each checked against AWS's own
+Four live runs against real AWS accounts, each checked against AWS's own
 records (Step Functions history, DynamoDB, SSM Automation, CloudTrail)
 rather than only the tool's output. Account IDs are masked.
 
+- [Run 4 (2026-10-10)](#run-4-2026-10-10-iam-authenticated-approval-delivery-recovery-and-a-batch):
+  the IAM-authenticated approval flow. A decision whose delivery failed was
+  retried and delivered once, the opposite decision was refused meanwhile,
+  and one execution processed three findings, one of them malformed.
 - [Run 3 (2026-10-07)](#run-3-2026-10-07-the-iam-user-and-instance-playbooks-deny-and-timeout):
   the three playbooks run 2 could not reach (compromised credentials,
   stale access keys, instance isolation), each changing real resources in
@@ -20,6 +24,87 @@ rather than only the tool's output. Account IDs are masked.
 - [Run 1 (2026-09-22)](#run-1-2026-09-22-single-account-pipeline-and-approval):
   one account. The finding pipeline, the policy fallback and the
   approval gate with a real email click.
+
+## Run 4 (2026-10-10): IAM-authenticated approval, delivery recovery and a batch
+
+The same [`examples/org-mode`](../examples/org-mode) deployment as runs 2
+and 3, at revision `f2ac7c0`.
+[`live_test_approval.py`](../examples/org-mode/live_test_approval.py) sent
+the findings, injected the fault and collected the results.
+[CASE-STUDY.md](CASE-STUDY.md) walks through the same run with a timeline
+and measured durations.
+
+### What was tested
+
+| | |
+|---|---|
+| **Accounts** | Hub and two member accounts; the finding and the remediation were in the first member account |
+| **Resources** | An IAM role with no permissions |
+| **Finding** | Imported with `BatchImportFindings` in the member account, shaped like GuardDuty's `InstanceCredentialExfiltration`, then delivered by Security Hub to the hub |
+| **Approver** | The hub profile's administrator role, submitting with `scripts/decide.py`'s `submit` function |
+| **Fault** | An inline policy on the callback function's role denying `states:SendTaskSuccess`, added before the first submission and removed after it |
+| **Batch** | One execution started with `StartExecution`, its input holding two findings for a dry-run policy and one malformed entry |
+
+All evidence is in [`proof/approval-recovery-run.json`](proof/approval-recovery-run.json).
+
+### Claims and evidence
+
+| # | Claim | Result | Evidence |
+|---|---|---|---|
+| 1 | A GET on a signed link only displays the request | **Proven** | `approval.steps[0]`: HTTP 200, `No decision has been submitted`; the pending request has no decision and the execution is `RUNNING` |
+| 2 | A decision whose delivery fails stays reserved and the execution keeps waiting | **Proven** | `steps[1]`: HTTP 503; the pending request holds `approve` and the approver's ARN with `consumed: false`; execution `RUNNING`. CloudTrail shows the `SendTaskSuccess` call refused |
+| 3 | The opposite decision is refused while one is reserved | **Proven** | `steps[2]`: POST Deny from the same approver, HTTP 409; the pending request is unchanged |
+| 4 | The same decision can be retried until it is delivered | **Proven** | 14 further attempts returned 503 while the removed deny still applied; the next returned 200 and the request became `consumed: true` |
+| 5 | Repeated attempts produce one remediation and one ledger entry | **Proven** | `findings.approval-recovery`: a single ledger entry, `executed`, one automation execution |
+| 6 | The approver's identity is recorded | **Proven** | The ledger entry's `decided_by` is the approver's assumed-role ARN (session name masked) |
+| 7 | `RevokeRoleSessions` runs in the member account after approval | **Proven** | Automation `Success`, started by `remediation-orchestrator-member-execution-role`; the role carries `AWSRevokeOlderSessions` with the approval time as `aws:TokenIssueTime` |
+| 8 | Every finding in a batch is processed | **Proven** | `batch.ledger`: both findings `dry_run`; the execution history enters `CheckSkip` three times |
+| 9 | A malformed entry is recorded and does not stop the batch | **Proven** | `rejected:<event id>:2`: `skipped`, `malformed_finding_or_empty_batch`; execution `SUCCEEDED` in 2.1 s |
+| 10 | The evidence export includes the run | **Proven** | The member account's document: 3 findings evaluated, 1 remediated, 2 dry-run |
+
+### What running it for real found
+
+No defect in the approval callback or the state machine: every claim held.
+
+- **A removed IAM deny kept applying for four minutes.** Retries returned
+  503 from 00:28:31 to 00:32:33 UTC although the fault policy was deleted at
+  00:28:30. The decision stayed reserved throughout. The test driver's
+  first version stopped retrying after three minutes; it now waits seven.
+- **A retry must carry the reserving session name.** The reservation is
+  bound to the full assumed-role ARN. A profile that assumes a role gets a
+  new session name per process unless `role_session_name` is set, so the
+  delivering attempt assumed the role under the original name.
+  [OPERATIONS.md](OPERATIONS.md#recover-delivery) now covers this.
+- **`live_test_playbooks.py deny` used a GET.** It now submits an
+  IAM-signed POST. Run 3's deny claim was proven with the older flow.
+
+### What this run does not prove
+
+- **A person at the `decide.py` prompt.** The driver called its `submit`
+  function directly.
+- **A retry under a different session name being refused**, and a second
+  approver. The DynamoDB condition requires the same ARN; the refusal itself
+  was not observed.
+- **A narrowly scoped approver.** The approver was an administrator; the
+  `execute-api:Invoke` grant on `approval_invoke_arn` was not exercised on
+  its own.
+- **A batch delivered by Security Hub.** Every event so far has held one
+  finding. More than five findings in one execution is also untested.
+- **Policy-lookup, guardrail and ledger-write failures, and the workflow
+  alarms firing.** Covered by the mocked Terraform test; the three alarms
+  stayed `OK`.
+- **The updated `live_test_playbooks.py deny` stage**, and upgrading a
+  deployment with executions in flight.
+- **Cost, other regions, scale and GovCloud.**
+
+### Reproduce it
+
+1. Deploy `examples/org-mode` as in run 2. Keep `approval_timeout_seconds`
+   at 600 or more.
+2. `python live_test_approval.py setup --hub <profile> --member-a <profile> --member-b <profile>`
+3. Run `send`, `decide`, then `resume`.
+4. Run `batch`, then `collect`. It writes `live-test-approval-evidence.json`.
+5. Run `cleanup`, then `terraform destroy`.
 
 ## Run 3 (2026-10-07): the IAM-user and instance playbooks, deny and timeout
 

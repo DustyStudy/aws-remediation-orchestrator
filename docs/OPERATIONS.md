@@ -33,6 +33,15 @@ may already have succeeded even when its response was lost. If the original
 session is unavailable, investigate history and let the approval time out; start
 a new reviewed execution only after confirming no remediation is in progress.
 
+"The same IAM session" means the same assumed-role ARN, session name included.
+Identity Center sessions use the sign-in name. A CLI profile that assumes a role
+gets a new session name in every process, so set `role_session_name` in that
+profile before submitting; a retry under a different name is treated as
+another approver.
+
+After a permission fix, expect 503 for several minutes. In the 2026-10-10 live
+run a removed IAM deny kept applying to the callback for over four minutes.
+
 ## Respond to a workflow alarm
 
 1. Locate the failed, timed-out or aborted execution in Step Functions.
@@ -85,5 +94,6 @@ submission route and independent alarms. Python regressions cover malformed
 batches, read-only GETs, unauthenticated submissions, delivery retry, conflicting
 decisions, closed tokens and stable ledger keys.
 
-These checks are not a new live deployment record. The older live results in
-[PROOF.md](PROOF.md) remain historical evidence for their recorded versions.
+These checks are not a live deployment record. Run 4 in [PROOF.md](PROOF.md)
+is the live record for the approval and batch paths; runs 1 to 3 are evidence
+for their recorded versions.

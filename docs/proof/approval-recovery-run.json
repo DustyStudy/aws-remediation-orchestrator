@@ -1,0 +1,558 @@
+{
+  "run_id": "20261010T002731",
+  "revision": "f2ac7c0001b7b985d01ef52d0712773537d100f3",
+  "deployed_resources": 161,
+  "accounts": {
+    "hub": "<hub>",
+    "member-a": "<member-a>",
+    "member-b": "<member-b>"
+  },
+  "findings": {
+    "approval-recovery": {
+      "finding_account": "member-a",
+      "ledger": [
+        {
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+          "execution_status": "Success",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "approval_required",
+          "finding_id": "live-test/20261010T002731/approval-recovery",
+          "resource_type": "AwsIamAccessKey",
+          "action_document": "remediation-orchestrator-RevokeRoleSessions",
+          "account_id": "<member-a>",
+          "policy_id": "guardduty-role-credential-exfiltration",
+          "resource_arn": "AWS::IAM::AccessKey:ASIALIVETESTEXAMPLE",
+          "severity_label": "HIGH",
+          "execution_id": "29862b1f-eca5-4ead-8895-6fc5bfd87615",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "executed",
+          "nist_controls": [
+            "AC-2",
+            "IR-4",
+            "IA-5"
+          ],
+          "title": "Live test: role credentials used from outside AWS (approval-recovery)",
+          "execution_ts": "2026-10-10T00:32:57.884Z"
+        }
+      ],
+      "automation": {
+        "ran_in": "member-a",
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-RevokeRoleSessions",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/<session>",
+        "steps": {
+          "RevokeSessions": "Success",
+          "NotifyStep": "Success"
+        }
+      }
+    }
+  },
+  "approval": {
+    "requested_at": "2026-10-10T00:27:53.411Z",
+    "steps": [
+      {
+        "step": "GET the Approve link",
+        "at": "2026-10-10T00:27:57.007796+00:00",
+        "http_status": 200,
+        "response": "Review decision: approve\nFinding: live-test/20261010T002731/approval-recovery\nPolicy: guardduty-role-credential-exfiltration\n\nNo decision has been submitted.\nSubmit this URL with an IAM-signed POST using scripts/decide.py. Your role needs execute-api:Invoke on the POST /decision route.",
+        "pending_request": {
+          "consumed": false,
+          "decision": null,
+          "decided_by": null
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST Approve while the callback cannot reach Step Functions",
+        "at": "2026-10-10T00:28:29.163820+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST Deny while Approve is reserved",
+        "at": "2026-10-10T00:28:30.021904+00:00",
+        "http_status": 409,
+        "response": "Request expired, resolved, or reserved by another decision/approver.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:28:31.097625+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:28:46.946243+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:29:03.038006+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:29:18.950756+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:29:34.860017+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:29:50.780007+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:30:06.782015+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:30:22.719634+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:30:38.622487+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:30:54.528127+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:31:10.501605+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:31:26.448147+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve after the fault is removed",
+        "at": "2026-10-10T00:31:42.361282+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve from a new process with the reserving session name",
+        "at": "2026-10-10T00:32:33.969831+00:00",
+        "http_status": 503,
+        "response": "Delivery not confirmed. Retry the same decision with the same IAM session.",
+        "pending_request": {
+          "consumed": false,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      },
+      {
+        "step": "POST the same Approve from a new process with the reserving session name",
+        "at": "2026-10-10T00:32:50.699077+00:00",
+        "http_status": 200,
+        "response": "Decision delivered: approve.",
+        "pending_request": {
+          "consumed": true,
+          "decision": "approve",
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+        },
+        "execution_status": "RUNNING"
+      }
+    ],
+    "imported_at": "2026-10-10T00:27:38.540212+00:00",
+    "execution": {
+      "status": "SUCCEEDED",
+      "started": "2026-10-09 19:27:48.869000-05:00",
+      "stopped": "2026-10-09 19:32:59.212000-05:00",
+      "states_entered": [
+        {
+          "at": "2026-10-09 19:27:48.888000-05:00",
+          "state": "NormalizeFinding"
+        },
+        {
+          "at": "2026-10-09 19:27:49.277000-05:00",
+          "state": "ProcessFindings"
+        },
+        {
+          "at": "2026-10-09 19:27:49.277000-05:00",
+          "state": "CheckSkip"
+        },
+        {
+          "at": "2026-10-09 19:27:49.277000-05:00",
+          "state": "LookupPolicy"
+        },
+        {
+          "at": "2026-10-09 19:27:50.339000-05:00",
+          "state": "CheckGuardrails"
+        },
+        {
+          "at": "2026-10-09 19:27:51.907000-05:00",
+          "state": "GuardrailChoice"
+        },
+        {
+          "at": "2026-10-09 19:27:51.907000-05:00",
+          "state": "ModeChoice"
+        },
+        {
+          "at": "2026-10-09 19:27:51.907000-05:00",
+          "state": "RequestApproval"
+        },
+        {
+          "at": "2026-10-09 19:32:49.991000-05:00",
+          "state": "ApprovalDecision"
+        },
+        {
+          "at": "2026-10-09 19:32:49.991000-05:00",
+          "state": "SetDecidedByHumanApproved"
+        },
+        {
+          "at": "2026-10-09 19:32:49.991000-05:00",
+          "state": "ExecuteRemediation"
+        },
+        {
+          "at": "2026-10-09 19:32:57.884000-05:00",
+          "state": "RecordExecuted"
+        }
+      ]
+    }
+  },
+  "batch": {
+    "execution": {
+      "status": "SUCCEEDED",
+      "started": "2026-10-09 19:33:02.661000-05:00",
+      "stopped": "2026-10-09 19:33:04.789000-05:00",
+      "states_entered": [
+        {
+          "at": "2026-10-09 19:33:02.683000-05:00",
+          "state": "NormalizeFinding"
+        },
+        {
+          "at": "2026-10-09 19:33:02.816000-05:00",
+          "state": "ProcessFindings"
+        },
+        {
+          "at": "2026-10-09 19:33:02.816000-05:00",
+          "state": "CheckSkip"
+        },
+        {
+          "at": "2026-10-09 19:33:02.816000-05:00",
+          "state": "CheckSkip"
+        },
+        {
+          "at": "2026-10-09 19:33:02.816000-05:00",
+          "state": "CheckSkip"
+        },
+        {
+          "at": "2026-10-09 19:33:02.816000-05:00",
+          "state": "LookupPolicy"
+        },
+        {
+          "at": "2026-10-09 19:33:02.816000-05:00",
+          "state": "LookupPolicy"
+        },
+        {
+          "at": "2026-10-09 19:33:02.816000-05:00",
+          "state": "RecordSkipped"
+        },
+        {
+          "at": "2026-10-09 19:33:03.261000-05:00",
+          "state": "CheckGuardrails"
+        },
+        {
+          "at": "2026-10-09 19:33:04.167000-05:00",
+          "state": "CheckGuardrails"
+        },
+        {
+          "at": "2026-10-09 19:33:04.167000-05:00",
+          "state": "GuardrailChoice"
+        },
+        {
+          "at": "2026-10-09 19:33:04.167000-05:00",
+          "state": "ModeChoice"
+        },
+        {
+          "at": "2026-10-09 19:33:04.167000-05:00",
+          "state": "RecordDryRun"
+        },
+        {
+          "at": "2026-10-09 19:33:04.533000-05:00",
+          "state": "GuardrailChoice"
+        },
+        {
+          "at": "2026-10-09 19:33:04.533000-05:00",
+          "state": "ModeChoice"
+        },
+        {
+          "at": "2026-10-09 19:33:04.533000-05:00",
+          "state": "RecordDryRun"
+        }
+      ]
+    },
+    "ledger": {
+      "live-test/20261010T002731/batch-1": [
+        {
+          "decided_by": "system",
+          "execution_status": "",
+          "generator_id": "live-test/rate-limit",
+          "mode": "dry_run",
+          "finding_id": "live-test/20261010T002731/batch-1",
+          "resource_type": "Other",
+          "account_id": "<member-a>",
+          "action_document": "",
+          "policy_id": "live-test-rate-limit",
+          "resource_arn": "live-test-batch-1",
+          "severity_label": "LOW",
+          "execution_id": "",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "dry_run",
+          "nist_controls": [],
+          "title": "Batch test 1",
+          "execution_ts": "2026-10-10T00:33:04.533Z"
+        }
+      ],
+      "live-test/20261010T002731/batch-2": [
+        {
+          "decided_by": "system",
+          "execution_status": "",
+          "generator_id": "live-test/rate-limit",
+          "mode": "dry_run",
+          "finding_id": "live-test/20261010T002731/batch-2",
+          "resource_type": "Other",
+          "action_document": "",
+          "account_id": "<member-a>",
+          "policy_id": "live-test-rate-limit",
+          "resource_arn": "live-test-batch-2",
+          "severity_label": "LOW",
+          "execution_id": "",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "dry_run",
+          "nist_controls": [],
+          "title": "Batch test 2",
+          "execution_ts": "2026-10-10T00:33:04.167Z"
+        }
+      ],
+      "rejected:live-test-20261010T002731:2": [
+        {
+          "decided_by": "system",
+          "execution_status": "",
+          "generator_id": "input-validation",
+          "mode": "n/a",
+          "finding_id": "rejected:live-test-20261010T002731:2",
+          "resource_type": "Other",
+          "account_id": "<hub>",
+          "action_document": "",
+          "policy_id": "n/a",
+          "resource_arn": "",
+          "severity_label": "INFORMATIONAL",
+          "execution_id": "",
+          "guardrail_allowed": false,
+          "guardrail_reason": "malformed_finding_or_empty_batch",
+          "region": "us-east-1",
+          "outcome": "skipped",
+          "nist_controls": [],
+          "title": "Rejected finding input",
+          "execution_ts": "2026-10-10T00:33:02.816Z"
+        }
+      ]
+    }
+  },
+  "resource_state_after": {
+    "victim_role_inline_policies": [
+      "AWSRevokeOlderSessions"
+    ],
+    "victim_role_revoke_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Deny",
+          "Action": [
+            "*"
+          ],
+          "Resource": [
+            "*"
+          ],
+          "Condition": {
+            "DateLessThan": {
+              "aws:TokenIssueTime": "2026-10-10T00:32:54Z"
+            }
+          }
+        }
+      ]
+    },
+    "callback_role_inline_policies": [
+      "remediation-orchestrator-approval-callback-policy"
+    ],
+    "workflow_alarms": {
+      "remediation-orchestrator-ExecutionsAborted": "OK",
+      "remediation-orchestrator-ExecutionsFailed": "OK",
+      "remediation-orchestrator-ExecutionsTimedOut": "OK"
+    }
+  },
+  "evidence_export": {
+    "invocation": {
+      "documents_written": [
+        "remediation-orchestrator/2026-10-10/<member-a>-us-east-1.json",
+        "remediation-orchestrator/2026-10-10/<hub>-us-east-1.json"
+      ],
+      "ledger_items_processed": 4
+    },
+    "documents": {
+      "remediation-orchestrator/2026-10-10/<hub>-us-east-1.json": {
+        "account": "<hub>",
+        "status": "pass",
+        "summary": "1 finding(s) evaluated between 2026-10-09T00:34:01.880431+00:00 and 2026-10-10T00:34:01.880431+00:00; 0 remediated, 0 dry-run, 0 blocked by guardrail, 0 denied, 0 failed",
+        "controls": {
+          "nist_800_53": []
+        },
+        "data": {
+          "findings_evaluated": 1,
+          "remediated": 0,
+          "dry_run": 0,
+          "blocked_by_guardrail": 0,
+          "denied": 0,
+          "failed": 0,
+          "period_start": "2026-10-09T00:34:01.880431+00:00",
+          "period_end": "2026-10-10T00:34:01.880431+00:00"
+        },
+        "sha256": "0a74b321cd69737c27e1d4426bd5d7f2f2d03570e632dcc19bab90025904f17b"
+      },
+      "remediation-orchestrator/2026-10-10/<member-a>-us-east-1.json": {
+        "account": "<member-a>",
+        "status": "pass",
+        "summary": "3 finding(s) evaluated between 2026-10-09T00:34:01.880431+00:00 and 2026-10-10T00:34:01.880431+00:00; 1 remediated, 2 dry-run, 0 blocked by guardrail, 0 denied, 0 failed",
+        "controls": {
+          "nist_800_53": [
+            "AC-2",
+            "IA-5",
+            "IR-4"
+          ]
+        },
+        "data": {
+          "findings_evaluated": 3,
+          "remediated": 1,
+          "dry_run": 2,
+          "blocked_by_guardrail": 0,
+          "denied": 0,
+          "failed": 0,
+          "period_start": "2026-10-09T00:34:01.880431+00:00",
+          "period_end": "2026-10-10T00:34:01.880431+00:00"
+        },
+        "sha256": "d774262c73a629ab0c9aaa816f77b8689d41579a01a14f182ccc5a12d2109877"
+      }
+    }
+  }
+}

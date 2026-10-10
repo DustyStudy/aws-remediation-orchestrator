@@ -104,8 +104,9 @@ The suggested mode is what `terraform.tfvars.example` seeds.
 
 [Operations and upgrade guide](docs/OPERATIONS.md) covers approver permissions,
 authenticated submissions, delivery recovery, alarms and draining existing
-executions before upgrading. The historical live runs below predate these
-approval and batch changes; current regression checks are separate evidence.
+executions before upgrading. [The case study](docs/CASE-STUDY.md) follows one
+finding through a live deployment, including a decision whose delivery fails
+and is recovered.
 
 ## Quickstart
 
@@ -179,13 +180,15 @@ the call is made:
 | How DynamoDB parses an expression | `consumed` is a reserved word, so the approval callback's update raised `ValidationException` instead of the conditional-check error the handler caught | `ExpressionAttributeNames` in both expressions |
 | Account quotas | A new account's Lambda concurrency limit can be 10, below the reserved concurrency the functions asked for | `enable_lambda_reserved_concurrency` |
 
-Three runs so far. The first, in one account, carried a real finding through a
+Four runs so far. The first, in one account, carried a real finding through a
 real human deny click. The second ran org mode across four accounts:
 playbooks remediated real buckets, a security group and a role in three
 accounts, and the rate limit, circuit breaker, tag denylist and evidence
 export all fired. The third ran the remaining three playbooks in member
 accounts: it deactivated real access keys, isolated a running instance,
-and recorded a denied and a timed-out approval. [`docs/PROOF.md`](docs/PROOF.md) has the evidence for each
+and recorded a denied and a timed-out approval. The fourth ran the
+IAM-authenticated approval flow, recovered a failed delivery and processed a
+three-finding batch. [`docs/PROOF.md`](docs/PROOF.md) has the evidence for each
 claim and what the runs did not cover.
 
 ## Repository layout
