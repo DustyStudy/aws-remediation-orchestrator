@@ -40,4 +40,6 @@ __pycache__/
 live-test-evidence.json
 .live-test-playbooks-state.json
 live-test-playbooks-evidence.json
+.live-test-approval-state.json
+live-test-approval-evidence.json
 *.tfplan

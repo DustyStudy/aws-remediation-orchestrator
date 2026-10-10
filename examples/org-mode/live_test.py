@@ -164,23 +164,12 @@ def ledger_entries(hub, table, finding_id, wait_seconds):
         time.sleep(10)
 
 
-def collect(hub, a, b, outside):
-    accounts = {x.label: x for x in (hub, a, b, outside) if x}
-    outputs = json.loads(subprocess.run(
-        ["terraform", "output", "-json", "orchestrator"], check=True, capture_output=True, text=True,
-        cwd=Path(__file__).parent).stdout)
-
-    sample = b.client("securityhub").get_findings(Filters={
-        "Type": [{"Value": "TTPs/Policy:IAMUser-RootCredentialUsage", "Comparison": "EQUALS"}],
-        "AwsAccountId": [{"Value": b.id, "Comparison": "EQUALS"}],
-        "RecordState": [{"Value": "ACTIVE", "Comparison": "EQUALS"}]})["Findings"]
-    if sample:
-        RUN["findings"]["guardduty-sample"] = {"id": sample[0]["Id"], "account": b.label, "real": True}
-
+def finding_results(hub, accounts, table, detail="guardrail_reason"):
+    """Ledger entries and SSM automation for every finding this run sent."""
     results = {}
     for name, finding in RUN["findings"].items():
         owner = accounts[finding["account"]]
-        entries = ledger_entries(hub, outputs["ledger_table"], finding["id"], wait_seconds=180)
+        entries = ledger_entries(hub, table, finding["id"], wait_seconds=180)
         result = {"finding_account": owner.label, "ledger": entries}
         for entry in entries:
             if entry.get("execution_id"):
@@ -196,7 +185,56 @@ def collect(hub, a, b, outside):
                     "steps": {s["StepName"]: s["StepStatus"] for s in execution["StepExecutions"]},
                 }
         results[name] = result
-        print(name, [(e["policy_id"], e["outcome"], e.get("guardrail_reason")) for e in entries] or "NO LEDGER ENTRY")
+        print(name, [(e["policy_id"], e["outcome"], e.get(detail)) for e in entries] or "NO LEDGER ENTRY")
+    return results
+
+
+def export_evidence(hub, bucket):
+    export = hub.client("lambda").invoke(FunctionName="remediation-orchestrator-export-evidence")
+    exported = json.loads(export["Payload"].read())
+    s3 = hub.client("s3")
+    documents = {}
+    for obj in s3.list_objects_v2(Bucket=bucket, Prefix="remediation-orchestrator/").get("Contents", []):
+        body = json.loads(s3.get_object(Bucket=bucket, Key=obj["Key"])["Body"].read())
+        documents[obj["Key"]] = {k: body[k] for k in ("account", "status", "summary", "controls", "data", "sha256")}
+    return {"invocation": exported, "documents": documents}
+
+
+def write_evidence(path, evidence, accounts):
+    text = json.dumps(evidence, indent=2, default=str)
+    for account in accounts.values():  # account IDs never go in the repo
+        text = text.replace(account.id, f"<{account.label}>")
+    assert not re.search(r"\b\d{12}\b", text), "unmasked account ID in evidence"
+    path.write_text(text, encoding="utf-8")
+    print(f"wrote {path}")
+
+
+def resolve_findings(accounts, updated_by):
+    for finding in RUN.get("findings", {}).values():
+        if finding.get("real"):
+            continue
+        owner = accounts[finding["account"]]
+        owner.client("securityhub").batch_update_findings(
+            FindingIdentifiers=[{
+                "Id": finding["id"],
+                "ProductArn": f"arn:{owner.partition}:securityhub:{owner.region}:{owner.id}:product/{owner.id}/default"}],
+            Workflow={"Status": "RESOLVED"}, Note={"Text": "live test cleanup", "UpdatedBy": updated_by})
+
+
+def collect(hub, a, b, outside):
+    accounts = {x.label: x for x in (hub, a, b, outside) if x}
+    outputs = json.loads(subprocess.run(
+        ["terraform", "output", "-json", "orchestrator"], check=True, capture_output=True, text=True,
+        cwd=Path(__file__).parent).stdout)
+
+    sample = b.client("securityhub").get_findings(Filters={
+        "Type": [{"Value": "TTPs/Policy:IAMUser-RootCredentialUsage", "Comparison": "EQUALS"}],
+        "AwsAccountId": [{"Value": b.id, "Comparison": "EQUALS"}],
+        "RecordState": [{"Value": "ACTIVE", "Comparison": "EQUALS"}]})["Findings"]
+    if sample:
+        RUN["findings"]["guardduty-sample"] = {"id": sample[0]["Id"], "account": b.label, "real": True}
+
+    results = finding_results(hub, accounts, outputs["ledger_table"])
 
     def block_public_access(account, suffix):
         return account.client("s3").get_public_access_block(
@@ -219,40 +257,19 @@ def collect(hub, a, b, outside):
             Name=outputs["circuit_breaker_param"], WithDecryption=True)["Parameter"]["Value"],
     }
 
-    export = hub.client("lambda").invoke(FunctionName="remediation-orchestrator-export-evidence")
-    exported = json.loads(export["Payload"].read())
-    s3 = hub.client("s3")
-    documents = {}
-    for obj in s3.list_objects_v2(Bucket=outputs["evidence_bucket"], Prefix="remediation-orchestrator/").get("Contents", []):
-        body = json.loads(s3.get_object(Bucket=outputs["evidence_bucket"], Key=obj["Key"])["Body"].read())
-        documents[obj["Key"]] = {k: body[k] for k in ("account", "status", "summary", "controls", "data", "sha256")}
-
     evidence = {
         "run_id": RUN["run_id"],
         "accounts": {x.label: x.id for x in accounts.values()},
         "findings": results,
         "resource_state_after": state_after,
-        "evidence_export": {"invocation": exported, "documents": documents},
+        "evidence_export": export_evidence(hub, outputs["evidence_bucket"]),
     }
-    text = json.dumps(evidence, indent=2, default=str)
-    for account in accounts.values():  # account IDs never go in the repo
-        text = text.replace(account.id, f"<{account.label}>")
-    assert not re.search(r"\b\d{12}\b", text), "unmasked account ID in evidence"
-    EVIDENCE.write_text(text, encoding="utf-8")
-    print(f"wrote {EVIDENCE}")
+    write_evidence(EVIDENCE, evidence, accounts)
 
 
 def cleanup(hub, a, b, outside):
     accounts = {x.label: x for x in (hub, a, b, outside) if x}
-    for finding in RUN.get("findings", {}).values():
-        if finding.get("real"):
-            continue
-        owner = accounts[finding["account"]]
-        owner.client("securityhub").batch_update_findings(
-            FindingIdentifiers=[{
-                "Id": finding["id"],
-                "ProductArn": f"arn:{owner.partition}:securityhub:{owner.region}:{owner.id}:product/{owner.id}/default"}],
-            Workflow={"Status": "RESOLVED"}, Note={"Text": "live_test.py cleanup", "UpdatedBy": "live_test.py"})
+    resolve_findings(accounts, "live_test.py")
     for account, suffixes in ((hub, ["hub"]), (a, ["member", "denylisted"])):
         for suffix in suffixes:
             account.client("s3").delete_bucket(Bucket=account.bucket(suffix))
