@@ -45,10 +45,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import boto3
-from botocore.credentials import ReadOnlyCredentials
-
 import live_test
 import live_test_playbooks
+from botocore.credentials import ReadOnlyCredentials
 from live_test import (
     VICTIM_ROLE,
     Account,
