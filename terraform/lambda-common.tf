@@ -7,8 +7,9 @@
 # functions rely on Retry/Catch in the state machine definition instead).
 
 resource "aws_kms_key" "lambda" {
-  description         = "Encrypts ${local.name_prefix} Lambda log groups and environment variables."
-  enable_key_rotation = true
+  description             = "Encrypts ${local.name_prefix} Lambda log groups and environment variables."
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
 
   policy = jsonencode({
     Version = "2012-10-17"
