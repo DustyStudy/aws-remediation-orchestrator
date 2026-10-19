@@ -14,6 +14,15 @@ follow [Semantic Versioning](https://semver.org/).
   decision after transient callback errors without reopening opposing choices.
 
 ### Security
+- `DisableCompromisedCredentials` also deactivates the user's active
+  service-specific credentials (Bedrock API keys, CodeCommit Git
+  credentials, Keyspaces passwords), which LLMjacking actors add as a
+  second way in
+  ([FortiGuard Labs, 2026-09-03](https://www.fortinet.com/blog/threat-research/someone-else-is-using-your-ai)).
+  The credentials automation role gains
+  `iam:ListServiceSpecificCredentials` and
+  `iam:UpdateServiceSpecificCredential` on `user/*`. NIST SP 800-53 Rev5:
+  IR-4, AC-2(3), IA-5.
 - **Breaking approval change:** GET links are read-only; submissions require
   IAM-authenticated POST. Record the IAM actor on both approval and denial.
   Drain existing executions before upgrading; see `docs/OPERATIONS.md`.

@@ -1,9 +1,13 @@
 """SSM Automation aws:executeScript step for DisableCompromisedCredentials.
 
 Deactivates (never deletes - reversible, and preserves the key for
-forensic review) every *active* access key belonging to the IAM user named
-in a GuardDuty ``UnauthorizedAccess:IAMUser/*`` finding, and tags the user
-so the deactivation is visible outside this system too.
+forensic review) every *active* access key and service-specific credential
+(Bedrock API key, CodeCommit Git credential, Keyspaces password) belonging
+to the IAM user named in a GuardDuty ``UnauthorizedAccess:IAMUser/*``
+finding, and tags the user so the deactivation is visible outside this
+system too. LLMjacking actors add a Bedrock API key to a stolen identity as
+a second way in (FortiGuard Labs, 2026-09-03), so access keys alone are
+not enough.
 
 The user comes from the finding's AwsIamAccessKey resource (UserName).
 ResourceArn is only used when it is an IAM user ARN: for GuardDuty
@@ -53,6 +57,20 @@ def handler(events, _context):
             )
             disabled_key_ids.append(key["AccessKeyId"])
 
+    # No ServiceName filter: every service's credentials are returned.
+    credentials = iam.list_service_specific_credentials(UserName=username)[
+        "ServiceSpecificCredentials"
+    ]
+    disabled_credential_ids = []
+    for credential in credentials:
+        if credential["Status"] == "Active":
+            iam.update_service_specific_credential(
+                UserName=username,
+                ServiceSpecificCredentialId=credential["ServiceSpecificCredentialId"],
+                Status="Inactive",
+            )
+            disabled_credential_ids.append(credential["ServiceSpecificCredentialId"])
+
     iam.tag_user(
         UserName=username,
         Tags=[
@@ -61,4 +79,8 @@ def handler(events, _context):
         ],
     )
 
-    return {"UserName": username, "DisabledAccessKeyIds": disabled_key_ids}
+    return {
+        "UserName": username,
+        "DisabledAccessKeyIds": disabled_key_ids,
+        "DisabledServiceCredentialIds": disabled_credential_ids,
+    }

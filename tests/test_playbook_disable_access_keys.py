@@ -15,6 +15,12 @@ def script(load_module, monkeypatch):
             {"AccessKeyId": "AKIA2", "Status": "Inactive"},
         ]
     }
+    iam.list_service_specific_credentials.return_value = {
+        "ServiceSpecificCredentials": [
+            {"ServiceSpecificCredentialId": "ACCA1", "ServiceName": "bedrock.amazonaws.com", "Status": "Active"},
+            {"ServiceSpecificCredentialId": "ACCA2", "ServiceName": "codecommit.amazonaws.com", "Status": "Inactive"},
+        ]
+    }
     sts = MagicMock()
     sts.get_caller_identity.return_value = {"Account": "123456789012"}
     clients = {"iam": iam, "sts": sts}
@@ -43,7 +49,19 @@ def test_deactivates_only_active_keys_of_the_named_user(script):
     script.iam.update_access_key.assert_called_once_with(
         UserName="alice", AccessKeyId="AKIA1", Status="Inactive"
     )
-    assert result == {"UserName": "alice", "DisabledAccessKeyIds": ["AKIA1"]}
+    assert result["UserName"] == "alice"
+    assert result["DisabledAccessKeyIds"] == ["AKIA1"]
+
+
+def test_deactivates_active_bedrock_api_keys_and_other_service_credentials(script):
+    result = _run(script)
+
+    script.iam.list_service_specific_credentials.assert_called_once_with(UserName="alice")
+    script.iam.update_service_specific_credential.assert_called_once_with(
+        UserName="alice", ServiceSpecificCredentialId="ACCA1", Status="Inactive"
+    )
+    script.iam.delete_service_specific_credential.assert_not_called()
+    assert result["DisabledServiceCredentialIds"] == ["ACCA1"]
 
 
 def test_falls_back_to_an_iam_user_arn(script):
@@ -68,3 +86,4 @@ def test_refuses_a_user_in_another_account(script):
         _run(script, AccountId="210987654321")
 
     script.iam.update_access_key.assert_not_called()
+    script.iam.update_service_specific_credential.assert_not_called()
