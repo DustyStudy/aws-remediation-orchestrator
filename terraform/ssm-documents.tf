@@ -152,7 +152,7 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
         outputs = [
           { Name = "UserName", Selector = "$.Payload.UserName", Type = "String" },
           { Name = "DisabledAccessKeyIds", Selector = "$.Payload.DisabledAccessKeyIds", Type = "StringList" },
-          { Name = "DisabledServiceCredentialIds", Selector = "$.Payload.DisabledServiceCredentialIds", Type = "StringList" },
+          { Name = "DisabledServiceCredentials", Selector = "$.Payload.DisabledServiceCredentials", Type = "String" },
         ]
       },
       {
@@ -167,7 +167,7 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
           Message  = <<-EOT
             Deactivated access key(s) {{ DisableAllAccessKeys.DisabledAccessKeyIds }}
             and service-specific credential(s)
-            {{ DisableAllAccessKeys.DisabledServiceCredentialIds }} for user
+            {{ DisableAllAccessKeys.DisabledServiceCredentials }} for user
             {{ DisableAllAccessKeys.UserName }} in response to finding
             {{ FindingId }} (account {{ AccountId }}). Credentials were deactivated,
             not deleted, so this is reversible if the finding is a false positive.

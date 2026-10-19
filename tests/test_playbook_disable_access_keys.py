@@ -61,7 +61,13 @@ def test_deactivates_active_bedrock_api_keys_and_other_service_credentials(scrip
         UserName="alice", ServiceSpecificCredentialId="ACCA1", Status="Inactive"
     )
     script.iam.delete_service_specific_credential.assert_not_called()
-    assert result["DisabledServiceCredentialIds"] == ["ACCA1"]
+    assert result["DisabledServiceCredentials"] == "ACCA1"
+
+
+def test_reports_none_when_no_service_credential_was_active(script):
+    script.iam.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+
+    assert _run(script)["DisabledServiceCredentials"] == "none"
 
 
 def test_falls_back_to_an_iam_user_arn(script):

@@ -82,5 +82,7 @@ def handler(events, _context):
     return {
         "UserName": username,
         "DisabledAccessKeyIds": disabled_key_ids,
-        "DisabledServiceCredentialIds": disabled_credential_ids,
+        # A String, not a StringList: SSM documents list-to-string conversion
+        # only for one element, and this list is usually empty.
+        "DisabledServiceCredentials": ", ".join(disabled_credential_ids) or "none",
     }
