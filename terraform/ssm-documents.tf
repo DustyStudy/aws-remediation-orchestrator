@@ -103,7 +103,7 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
 
   content = yamlencode({
     schemaVersion = "0.3"
-    description   = "Deactivates every active access key for an IAM user flagged by a GuardDuty UnauthorizedAccess:IAMUser finding."
+    description   = "Deactivates every active access key and service-specific credential (such as Bedrock API keys) for an IAM user flagged by a GuardDuty UnauthorizedAccess:IAMUser finding."
     assumeRole    = "{{ AutomationAssumeRole }}"
     parameters = {
       ResourceArn = {
@@ -152,6 +152,7 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
         outputs = [
           { Name = "UserName", Selector = "$.Payload.UserName", Type = "String" },
           { Name = "DisabledAccessKeyIds", Selector = "$.Payload.DisabledAccessKeyIds", Type = "StringList" },
+          { Name = "DisabledServiceCredentials", Selector = "$.Payload.DisabledServiceCredentials", Type = "String" },
         ]
       },
       {
@@ -162,12 +163,14 @@ resource "aws_ssm_document" "disable_compromised_credentials" {
           Service  = "sns"
           Api      = "Publish"
           TopicArn = "{{ NotificationTopicArn }}"
-          Subject  = "IAM user {{ DisableAllAccessKeys.UserName }} - access keys deactivated"
+          Subject  = "IAM user {{ DisableAllAccessKeys.UserName }} - credentials deactivated"
           Message  = <<-EOT
             Deactivated access key(s) {{ DisableAllAccessKeys.DisabledAccessKeyIds }}
-            for user {{ DisableAllAccessKeys.UserName }} in response to finding
-            {{ FindingId }} (account {{ AccountId }}). Keys were deactivated, not
-            deleted, so this is reversible if the finding is a false positive.
+            and service-specific credential(s)
+            {{ DisableAllAccessKeys.DisabledServiceCredentials }} for user
+            {{ DisableAllAccessKeys.UserName }} in response to finding
+            {{ FindingId }} (account {{ AccountId }}). Credentials were deactivated,
+            not deleted, so this is reversible if the finding is a false positive.
           EOT
         }
       },
