@@ -70,7 +70,7 @@ import logging
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 from botocore.exceptions import ClientError
@@ -163,7 +163,7 @@ def _import_to_security_hub(payload, raw_body, severity, title, resource_id):
     if not isinstance(wiz_id, str) or not wiz_id:
         wiz_id = hashlib.sha256(raw_body.encode("utf-8")).hexdigest()
     finding_id = f"wiz/{wiz_id}"
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
     finding = {
         "SchemaVersion": "2018-10-08",
         "Id": finding_id[:512],

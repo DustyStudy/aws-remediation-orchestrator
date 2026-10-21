@@ -9,7 +9,7 @@ decide it.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import boto3
@@ -31,7 +31,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     execution_id = event.get("execution_id")
     execution_status = event.get("execution_status")
 
-    timestamp = event.get("timestamp") or datetime.now(timezone.utc).isoformat()
+    timestamp = event.get("timestamp") or datetime.now(UTC).isoformat()
 
     item = ledger.build_ledger_item(
         finding=finding,

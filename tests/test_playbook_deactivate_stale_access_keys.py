@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 
 SCRIPT = "terraform/ssm-documents/scripts/deactivate_stale_access_keys.py"
 USER_ARN = "arn:aws:iam::123456789012:user/team/alice"
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 def _days_ago(days):
