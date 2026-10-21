@@ -55,7 +55,8 @@ resource "aws_dynamodb_table_item" "policy_registry_seed" {
       ? jsonencode({ NULL = true })
       : jsonencode({ S = each.value.severity_threshold })
     )
-    description = { S = each.value.description }
+    resource_type = { S = each.value.resource_type }
+    description   = { S = each.value.description }
   })
 }
 

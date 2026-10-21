@@ -49,6 +49,7 @@ variable "policy_registry_seed" {
     nist_controls         = optional(list(string), [])
     max_actions_per_hour  = optional(number, 10)
     severity_threshold    = optional(string, null)
+    resource_type         = optional(string, "")
     description           = string
   }))
 

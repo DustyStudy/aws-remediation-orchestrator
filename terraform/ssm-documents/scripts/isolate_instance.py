@@ -19,6 +19,8 @@ a live session must end now.
 Ported from aws-cloud-security-toolbox's ec2-isolation-runbook, which
 needed the isolation group created ahead of time in a VPC you named.
 """
+import re
+
 import boto3
 
 ISOLATION_TAG_KEY = "Purpose"
@@ -52,7 +54,12 @@ def _isolation_group(ec2, vpc_id, name_prefix):
 
 
 def handler(events, _context):
-    instance_id = events["ResourceArn"].rsplit("/", 1)[-1]
+    # GuardDuty names the instance as ...:instance/i-..., Amazon Inspector as ...:i-...
+    parts = events["ResourceArn"].split(":", 5)
+    match = re.fullmatch(r"(?:instance/)?(i-[0-9a-f]+)", parts[5]) if len(parts) == 6 else None
+    if parts[0] != "arn" or len(parts) != 6 or parts[2] != "ec2" or not match:
+        raise ValueError(f"not an EC2 instance ARN: {events['ResourceArn']}")
+    instance_id = match.group(1)
     finding_id = events.get("FindingId") or "unspecified"
     name_prefix = events["NamePrefix"]
 

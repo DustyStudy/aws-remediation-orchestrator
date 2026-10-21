@@ -75,7 +75,7 @@ to a playbook owned by another deployment via
 
 | Piece | What it does |
 |---|---|
-| **Policy registry** (DynamoDB) | Matches a finding's ASFF type/generator against rules that set mode, target playbook, NIST 800-53 mapping, and rate limit. See [`docs/POLICY_REGISTRY.md`](docs/POLICY_REGISTRY.md). |
+| **Policy registry** (DynamoDB) | Matches a finding's ASFF type, generator or CVE (and optionally its resource type) against rules that set mode, target playbook, NIST 800-53 mapping, and rate limit. See [`docs/POLICY_REGISTRY.md`](docs/POLICY_REGISTRY.md). |
 | **Guardrails** | Org-wide circuit breaker (one SSM parameter), per-policy hourly rate limit with auto-trip on a detector storm, and a generic `do-not-remediate` resource tag denylist (Resource Groups Tagging API - works across resource types with no per-service code). |
 | **Approval flow** | `approval_required` policies pause the state machine (`waitForTaskToken`) and email signed review links; decisions require an IAM-authenticated POST; a timeout with no response is treated as a deny. |
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
@@ -98,7 +98,7 @@ The suggested mode is what `terraform.tfvars.example` seeds.
 | `DisableCompromisedCredentials` | Deactivates every active access key and service-specific credential (Bedrock API keys, CodeCommit and Keyspaces passwords) of the IAM user in a GuardDuty finding. | `approval_required` |
 | `DeactivateStaleAccessKeys` | Deactivates only the user's keys older than 90 days or unused for 45 (Security Hub IAM.3 / IAM.22). | `approval_required` |
 | `RevokeRoleSessions` | Adds the `AWSRevokeOlderSessions` deny (same as the console's "Revoke active sessions") to the role in a GuardDuty credential finding, so stolen role credentials stop working. New sessions still work. | `approval_required` |
-| `IsolateCompromisedInstance` | Snapshots the instance's volumes, then moves every network interface to a per-VPC isolation security group with no inbound or outbound rules. Can also stop it. | `approval_required` |
+| `IsolateCompromisedInstance` | Snapshots the instance's volumes, then moves every network interface to a per-VPC isolation security group with no inbound or outbound rules. Can also stop it. Runs on GuardDuty instance findings and on Amazon Inspector findings for chosen CVEs, such as php2shell, on an instance that can't be patched yet. | `approval_required` |
 
 ## Operating approvals and recovering failures
 

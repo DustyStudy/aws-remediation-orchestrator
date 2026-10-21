@@ -11,14 +11,15 @@ the table for a break-glass change without a `terraform apply`.
 | Field | Type | Meaning |
 |---|---|---|
 | `match_id` | string (key) | Unique id for the rule. `default` is required - it's the fallback applied when nothing else matches. |
-| `match_field` | `"type_prefix"` \| `"generator_id"` | Which normalized finding field to match against. |
-| `match_value` | string | Prefix to match. `""` on the `default` item (never actually matched against - see below). |
+| `match_field` | `"type_prefix"` \| `"generator_id"` \| `"vulnerability_id"` | Which normalized finding field to match against. `vulnerability_id` is the finding's first `Vulnerabilities[].Id`, such as a CVE from Amazon Inspector. |
+| `match_value` | string | Prefix to match, or the exact id for `vulnerability_id`. `""` on the `default` item (never actually matched against - see below). |
 | `mode` | `"auto"` \| `"approval_required"` \| `"dry_run"` \| `"ignore"` | What happens on a match. |
 | `action_document` | string | SSM Automation document name. Required for `auto`/`approval_required`. |
 | `action_document_owner` | `"self"` \| `"external"` | Informational - documents which deployment owns the document. |
 | `nist_controls` | list of string | NIST 800-53 control IDs this remediation addresses, carried into the audit ledger and evidence export. |
 | `max_actions_per_hour` | number | Rate limit for this policy specifically (see `check_guardrails`). |
 | `severity_threshold` | string or null | Minimum ASFF severity label (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`) to act on. Below it, the finding is treated as `ignore`. |
+| `resource_type` | string | Optional. ASFF resource type (for example `AwsEc2Instance`) the finding's first resource must have. `""` matches any. Inspector reports one CVE on instances, ECR images and Lambda functions alike, and a playbook usually handles only one of them. |
 | `description` | string | Human-readable explanation, shown nowhere except the table itself - keep it useful for the next person editing this rule. |
 
 ## Matching
@@ -26,7 +27,12 @@ the table for a break-glass change without a `terraform apply`.
 `lookup_policy` scans the full table (see
 `terraform/lambda/lookup_policy/handler.py`) and picks the item whose
 `match_value` is the longest prefix match against the finding's
-`match_field`. The `default` item is excluded from that comparison and
+`match_field` (an exact match for `vulnerability_id`, since
+`CVE-2026-1096` is a prefix of `CVE-2026-109618`), skipping items whose
+`resource_type` differs from the finding's. On equal length, a rule with a
+`resource_type` beats one without, then the lower `match_id` wins. Length
+is compared across fields, so a type prefix longer than a CVE id beats
+a `vulnerability_id` rule for the same finding. The `default` item is excluded from that comparison and
 used only as a fallback, so it's safe to leave its `match_value` empty -
 it will never accidentally "win" a match against a real rule.
 

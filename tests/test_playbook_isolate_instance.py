@@ -88,3 +88,31 @@ def test_instance_is_tagged_with_the_finding(script):
 
     tags = script.ec2.create_tags.call_args.kwargs["Tags"]
     assert {"Key": "IsolationFindingId", "Value": "f-1"} in tags
+
+
+@pytest.mark.parametrize(
+    "resource_arn",
+    [
+        "arn:aws:ec2:us-east-1:123456789012:instance/i-1",
+        "arn:aws:ec2:us-east-1:123456789012:i-1",  # Amazon Inspector's form
+    ],
+)
+def test_reads_the_instance_id_from_either_arn_form(script, resource_arn):
+    result = script.handler({"ResourceArn": resource_arn, "FindingId": "f-1", "NamePrefix": "ro"}, None)
+
+    assert result["InstanceId"] == "i-1"
+    script.ec2.describe_instances.assert_called_once_with(InstanceIds=["i-1"])
+
+
+@pytest.mark.parametrize(
+    "resource_arn",
+    [
+        "arn:aws:ecr:us-east-1:123456789012:repository/web/sha256:abc",
+        "arn:aws:lambda:us-east-1:123456789012:function:i-0f1ed287081bdf0fb",
+        "i-0f1ed287081bdf0fb",
+    ],
+)
+def test_refuses_a_resource_that_is_not_an_instance(script, resource_arn):
+    with pytest.raises(ValueError):
+        script.handler({"ResourceArn": resource_arn, "FindingId": "f-1", "NamePrefix": "ro"}, None)
+    script.ec2.create_tags.assert_not_called()

@@ -133,3 +133,34 @@ def test_normalize_has_no_user_for_a_role_session():
     finding = _access_key_finding({"PrincipalType": "AssumedRole", "PrincipalName": "app-role"})
 
     assert asff.normalize(finding)["principal_user_name"] == ""
+
+
+def test_normalize_reads_the_inspector_vulnerability_id():
+    finding = {
+        **BASE_FINDING,
+        "Types": ["Software and Configuration Checks/Vulnerabilities/CVE"],
+        "Vulnerabilities": [{"Id": "CVE-2026-109618", "ExploitAvailable": "YES"}],
+    }
+    assert asff.normalize(finding)["vulnerability_id"] == "CVE-2026-109618"
+
+
+def test_normalize_has_no_vulnerability_id_without_vulnerabilities():
+    assert asff.normalize(BASE_FINDING)["vulnerability_id"] == ""
+
+
+def test_normalize_rejects_a_malformed_vulnerabilities_list():
+    with pytest.raises(asff.MalformedFindingError):
+        asff.normalize({**BASE_FINDING, "Vulnerabilities": ["CVE-2026-109618"]})
+
+
+@pytest.mark.parametrize(
+    ("resource_id", "expected"),
+    [
+        ("arn:aws-us-gov:ec2:us-gov-west-1:123456789012:i-0f1e", "arn:aws-us-gov:ec2:us-gov-west-1:123456789012:instance/i-0f1e"),
+        ("arn:aws:ec2:us-east-1:123456789012:instance/i-0f1e", "arn:aws:ec2:us-east-1:123456789012:instance/i-0f1e"),
+        ("arn:aws:lambda:us-east-1:123456789012:function:i-0f1e", "arn:aws:lambda:us-east-1:123456789012:function:i-0f1e"),
+    ],
+)
+def test_normalize_gives_inspector_instance_arns_the_canonical_form(resource_id, expected):
+    finding = {**BASE_FINDING, "Resources": [{"Id": resource_id, "Type": "AwsEc2Instance"}]}
+    assert asff.normalize(finding)["resource_arn"] == expected
