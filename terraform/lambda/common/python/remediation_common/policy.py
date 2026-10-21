@@ -2,7 +2,8 @@
 
 The registry is a small DynamoDB table (rarely more than a few dozen items)
 rather than anything requiring an index - each item is a prefix match
-against either the finding's first ``Types`` entry or its ``GeneratorId``,
+against either the finding's first ``Types`` entry or its ``GeneratorId``
+(or an exact match on its vulnerability id),
 plus the governance metadata (mode, target SSM document, NIST mapping,
 rate limit) that decides what happens next.
 
@@ -33,15 +34,28 @@ def validate_policy(item: dict[str, Any]) -> None:
         )
 
 
+def _beats(item: dict[str, Any], best: dict[str, Any]) -> bool:
+    # Longer match first, then a resource-specific rule, then the lower
+    # match_id, so the DynamoDB scan order never decides between two rules.
+    def rank(i: dict[str, Any]) -> tuple[int, bool]:
+        return (len(i.get("match_value", "")), bool(i.get("resource_type")))
+
+    if rank(item) != rank(best):
+        return rank(item) > rank(best)
+    return item.get("match_id", "") < best.get("match_id", "")
+
+
 def select_policy(items: list[dict[str, Any]], normalized: dict[str, Any]) -> dict[str, Any]:
     """Pick the best-matching policy item for a normalized finding.
 
-    Matching is prefix-based on either ``type_prefix`` or ``generator_id``,
-    per item. When multiple items match, the one with the longest
-    ``match_value`` wins (most specific rule beats a broader one covering
-    the same finding). Falls back to the ``default`` item, which every
-    deployment must seed (Terraform does this - see dynamodb.tf) so a
-    finding never has literally no policy.
+    Matching is prefix-based on ``type_prefix`` or ``generator_id``, and
+    exact on ``vulnerability_id`` (CVE-2026-1096 is a prefix of
+    CVE-2026-109618). An item with a ``resource_type`` matches only
+    findings about that ASFF resource type. When multiple items match, the
+    one with the longest ``match_value`` wins (most specific rule beats a
+    broader one covering the same finding). Falls back to the ``default``
+    item, which every deployment must seed (Terraform does this - see
+    dynamodb.tf) so a finding never has literally no policy.
     """
     best: dict[str, Any] | None = None
     for item in items:
@@ -52,7 +66,12 @@ def select_policy(items: list[dict[str, Any]], normalized: dict[str, Any]) -> di
         subject = normalized.get(field, "") if field else ""
         if not value or not subject.startswith(value):
             continue
-        if best is None or len(value) > len(best.get("match_value", "")):
+        if field == "vulnerability_id" and subject != value:
+            continue
+        resource_type = item.get("resource_type")
+        if resource_type and resource_type != normalized.get("resource_type"):
+            continue
+        if best is None or _beats(item, best):
             best = item
 
     if best is not None:

@@ -132,6 +132,41 @@ policy_registry_seed = {
     description           = "Snapshots and network-isolates the instance. An outage if the finding is wrong, so a human confirms first."
   }
 
+  # Amazon Inspector findings for php2shell, unauthenticated remote code
+  # execution in PHP itself (CVE-2026-109618 and CVE-2026-109619, both
+  # exploited within days of disclosure). Patching PHP is the fix; this
+  # isolates an internet-facing EC2 instance that can't be patched yet, as
+  # CERT-EU advises. Inspector also reports the same CVE on ECR images and
+  # Lambda functions, so resource_type keeps these rules to instances.
+  # Inspector raises a finding for every affected instance at once: 30 in
+  # an hour (3 x max_actions_per_hour) trips the circuit breaker and
+  # pauses every policy until someone resets it.
+  inspector-php2shell-cve-2026-109618 = {
+    match_field           = "vulnerability_id"
+    match_value           = "CVE-2026-109618"
+    resource_type         = "AwsEc2Instance"
+    mode                  = "approval_required"
+    action_document       = "remediation-orchestrator-IsolateCompromisedInstance"
+    action_document_owner = "self"
+    nist_controls         = ["SI-2", "IR-4", "SC-7"]
+    max_actions_per_hour  = 10
+    severity_threshold    = "HIGH"
+    description           = "Network-isolates an EC2 instance running PHP vulnerable to php2shell. Takes the site offline, so a human confirms first; approve only if the instance can't be patched now."
+  }
+
+  inspector-php2shell-cve-2026-109619 = {
+    match_field           = "vulnerability_id"
+    match_value           = "CVE-2026-109619"
+    resource_type         = "AwsEc2Instance"
+    mode                  = "approval_required"
+    action_document       = "remediation-orchestrator-IsolateCompromisedInstance"
+    action_document_owner = "self"
+    nist_controls         = ["SI-2", "IR-4", "SC-7"]
+    max_actions_per_hour  = 10
+    severity_threshold    = "HIGH"
+    description           = "Same as inspector-php2shell-cve-2026-109618, for the second php2shell CVE."
+  }
+
   # GuardDuty UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.InsideAWS
   # and .OutsideAWS: instance-role credentials used from somewhere else.
   guardduty-role-credential-exfiltration = {

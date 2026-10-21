@@ -26,7 +26,7 @@ def normalize(finding: dict[str, Any]) -> dict[str, Any]:
     for field in ("Id", "ProductArn", "Title", "GeneratorId", "AwsAccountId"):
         if not isinstance(finding.get(field), str) or not finding[field].strip():
             raise MalformedFindingError(f"finding requires a nonempty string: {field}")
-    for field, item_type in (("Types", str), ("Resources", dict)):
+    for field, item_type in (("Types", str), ("Resources", dict), ("Vulnerabilities", dict)):
         values = finding.get(field) or []
         if not isinstance(values, list) or not all(isinstance(item, item_type) for item in values):
             raise MalformedFindingError(f"invalid {field} list")
@@ -59,11 +59,12 @@ def normalize(finding: dict[str, Any]) -> dict[str, Any]:
         "record_state": record_state,
         "account_id": aws_account_id,
         "region": region,
-        "resource_arn": primary_resource.get("Id", ""),
+        "resource_arn": _canonical_resource_arn(primary_resource.get("Id", "")),
         "resource_type": primary_resource.get("Type", "Other"),
         "resource_tags": primary_resource.get("Tags") or {},
         "principal_role_name": _assumed_role_name(resources),
         "principal_user_name": _iam_user_name(resources),
+        "vulnerability_id": _vulnerability_id(finding.get("Vulnerabilities") or []),
         "first_observed_at": finding.get("FirstObservedAt", finding.get("CreatedAt", "")),
         "description": finding.get("Description", ""),
     }
@@ -133,6 +134,30 @@ def _assumed_role_name(resources: list[dict[str, Any]]) -> str:
             return issuer["UserName"]
         if details.get("PrincipalType") == "AssumedRole" and details.get("PrincipalName"):
             return details["PrincipalName"]
+    return ""
+
+
+def _canonical_resource_arn(arn: str) -> str:
+    """Amazon Inspector names an instance ``arn:...:ec2:<region>:<account>:i-...``,
+    without the ``instance/`` the tagging API and the do-not-remediate
+    denylist need. Every other id is returned unchanged.
+    """
+    parts = arn.split(":", 5)
+    if len(parts) == 6 and parts[0] == "arn" and parts[2] == "ec2" and parts[5].startswith("i-"):
+        parts[5] = f"instance/{parts[5]}"
+        return ":".join(parts)
+    return arn
+
+
+def _vulnerability_id(vulnerabilities: list[dict[str, Any]]) -> str:
+    """CVE (or other advisory) id of a vulnerability finding, or "".
+
+    Amazon Inspector sends one finding per vulnerability per resource, so
+    the first entry is the finding's vulnerability.
+    """
+    for vulnerability in vulnerabilities:
+        if isinstance(vulnerability.get("Id"), str):
+            return vulnerability["Id"]
     return ""
 
 

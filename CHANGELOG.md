@@ -14,6 +14,14 @@ follow [Semantic Versioning](https://semver.org/).
   decision after transient callback errors without reopening opposing choices.
 
 ### Security
+- Route Amazon Inspector findings by CVE: the policy registry gains a
+  `vulnerability_id` match field (exact match on the finding's
+  `Vulnerabilities[].Id`) and an optional `resource_type` filter.
+  `terraform.tfvars.example` seeds approval-required
+  `IsolateCompromisedInstance` rules for EC2 instances with php2shell,
+  unauthenticated remote code execution in PHP
+  ([CVE-2026-109618 and CVE-2026-109619](https://www.tenable.com/blog/php2shell-cve-2026-109618-cve-2026-109619-frequently-asked-questions-about-critical-php-remote)).
+  NIST SP 800-53 Rev5: SI-2, IR-4, SC-7.
 - `DisableCompromisedCredentials` also deactivates the user's active
   service-specific credentials (Bedrock API keys, CodeCommit Git
   credentials, Keyspaces passwords), which LLMjacking actors add as a
