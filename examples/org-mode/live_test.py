@@ -26,7 +26,7 @@ import json
 import re
 import subprocess
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import boto3
@@ -54,7 +54,7 @@ class Account:
         return f"orch-live-test-{self.id}-{suffix}"
 
     def import_finding(self, name, generator, title, resource, types=None, severity="HIGH"):
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         finding_id = f"live-test/{RUN['run_id']}/{name}"
         response = self.client("securityhub").batch_import_findings(Findings=[{
             "SchemaVersion": "2018-10-08",
@@ -80,7 +80,7 @@ def s3_resource(account, bucket):
 
 
 def setup(hub, a, b, _outside):
-    RUN["run_id"] = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    RUN["run_id"] = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     for account, suffixes in ((hub, ["hub"]), (a, ["member", "denylisted"])):
         s3 = account.client("s3")
         for suffix in suffixes:
@@ -130,7 +130,7 @@ def auto(hub, a, b, outside):
     guardduty = b.client("guardduty")
     detector = guardduty.list_detectors()["DetectorIds"][0]
     guardduty.create_sample_findings(DetectorId=detector, FindingTypes=["Policy:IAMUser/RootCredentialUsage"])
-    RUN["guardduty_sample_after"] = datetime.now(timezone.utc).isoformat()
+    RUN["guardduty_sample_after"] = datetime.now(UTC).isoformat()
     print(f"asked GuardDuty in {b.label} for a real sample finding")
 
 

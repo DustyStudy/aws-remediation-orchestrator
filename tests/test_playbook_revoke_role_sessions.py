@@ -1,11 +1,11 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
 
 SCRIPT = "terraform/ssm-documents/scripts/revoke_role_sessions.py"
-NOW = datetime(2026, 9, 29, 12, 30, 5, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 29, 12, 30, 5, tzinfo=UTC)
 
 
 @pytest.fixture

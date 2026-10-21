@@ -14,7 +14,7 @@ tags can't be read, the script fails instead of guessing.
 Ported from aws-cloud-security-toolbox's iam-credential-hygiene, which
 scanned every user on a schedule instead of acting per finding.
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -47,7 +47,7 @@ def handler(events, _context):
         if any(tag["Key"] == exempt_tag_key for tag in tags):
             return {"UserName": user_name, "DeactivatedAccessKeyIds": [], "Reasons": "user is exempt"}
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     deactivated, reasons = [], []
     for key in iam.list_access_keys(UserName=user_name)["AccessKeyMetadata"]:
         if key["Status"] != "Active":

@@ -19,7 +19,7 @@ If the credentials came off an instance, isolate the instance too
 Workloads that use the role fail until they get fresh credentials.
 """
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -28,7 +28,7 @@ MISSING = ("", "unspecified")
 
 
 def _now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _revoke_policy(cutoff):

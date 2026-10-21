@@ -34,7 +34,7 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import live_test
@@ -109,7 +109,7 @@ def create_users(management, a):
 
 
 def setup(hub, a, b, management):
-    RUN["run_id"] = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    RUN["run_id"] = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     create_users(management, a)
 
     a.client("iam").create_role(

@@ -41,7 +41,7 @@ import subprocess
 import sys
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import boto3
@@ -72,11 +72,11 @@ PROPAGATION_SECONDS = 30  # IAM is eventually consistent
 
 
 def now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def setup(hub, a, _b):
-    RUN["run_id"] = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    RUN["run_id"] = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     a.client("iam").create_role(
         RoleName=VICTIM_ROLE,
         Description="live_test_approval.py target for RevokeRoleSessions. No permissions.",
