@@ -12,6 +12,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -25,6 +28,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      pip:
+        patterns: ["*"]
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -38,6 +44,9 @@ updates:
     directory: "/terraform"
     schedule:
       interval: "weekly"
+    groups:
+      terraform:
+        patterns: ["*"]
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
