@@ -2,5 +2,5 @@
 #
 #   uv pip compile requirements-dev.in --universal --generate-hashes --python-version 3.12 --no-header -o requirements-dev.txt
 pytest==9.1.1
-ruff==0.17.0
-boto3==1.43.112
+ruff==0.17.1
+boto3==1.43.114
