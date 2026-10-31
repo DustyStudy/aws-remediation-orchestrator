@@ -17,8 +17,8 @@ runs in both AWS commercial and GovCloud.
   than the finding. Teams need a human in the loop for disruptive fixes.
 - **Approach:** one pipeline with a policy registry, rate limits, a circuit
   breaker, an email approval gate and an audit ledger.
-- **Result:** [run end to end in real AWS accounts, three times](docs/PROOF.md):
-  once in a single account, and twice across the accounts of an AWS
+- **Result:** [run end to end in real AWS accounts, four times](docs/PROOF.md):
+  once in a single account, then across the accounts of an AWS
   organization, where all six playbooks changed real resources.
   The runs found defects that `terraform validate`, tflint, Checkov, ruff
   and pytest all missed, including an approval callback and a circuit
@@ -215,9 +215,12 @@ aws-remediation-orchestrator/
 ├── tests/                       # pytest unit tests
 └── docs/
     ├── ARCHITECTURE.md
+    ├── CASE-STUDY.md
+    ├── OPERATIONS.md
     ├── ORG_MODE.md
     ├── POLICY_REGISTRY.md
-    └── EVIDENCE_SCHEMA.md
+    ├── EVIDENCE_SCHEMA.md
+    └── PROOF.md
 ```
 
 ## License
