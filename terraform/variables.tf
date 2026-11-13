@@ -87,7 +87,7 @@ variable "org_member_account_ids" {
 
 variable "open_ingress_revoke_ports" {
   type        = list(number)
-  description = "Ports that RevokeOpenSshRdpIngress closes when a rule opens them to 0.0.0.0/0 or ::/0: SSH, RDP, common database and cache ports (MSSQL, Oracle, MySQL, PostgreSQL, Redis, Elasticsearch/OpenSearch, MongoDB) and self-hosted AI server ports (LiteLLM proxy 4000, Ollama 11434). No service on these ports should face the whole internet. Port 3000 (Gotenberg, Gitea, Grafana) is not in the default; add it if nothing of yours serves the public there."
+  description = "Ports that RevokeOpenSshRdpIngress closes when a rule opens them to 0.0.0.0/0 or ::/0: SSH, RDP, common database and cache ports (MSSQL, Oracle, MySQL, PostgreSQL, Redis, Elasticsearch/OpenSearch, MongoDB) and self-hosted AI server ports (LiteLLM proxy 4000, Ollama 11434). No service on these ports should face the whole internet. Port 3000 is not in the default because Grafana, Gitea and Gotenberg also use it; add it if nothing of yours serves the public there, and add it where you run Flowise, whose default port it is and which attackers have exploited (CVE-2025-59528, CVE-2026-41264)."
   default     = [22, 3389, 1433, 1521, 3306, 4000, 5432, 6379, 9200, 11434, 27017]
 
   validation {
