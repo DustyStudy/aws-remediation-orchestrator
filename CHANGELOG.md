@@ -14,6 +14,10 @@ follow [Semantic Versioning](https://semver.org/).
   decision after transient callback errors without reopening opposing choices.
 
 ### Security
+- Document adding port 3000 to `open_ingress_revoke_ports` where Flowise
+  runs, after attackers exploited internet-facing Flowise servers
+  (CVE-2025-59528, CVE-2026-41264; The Hacker News, 2026). The default
+  stays the same because Grafana, Gitea and Gotenberg also use port 3000.
 - Route Amazon Inspector findings by CVE: the policy registry gains a
   `vulnerability_id` match field (exact match on the finding's
   `Vulnerabilities[].Id`) and an optional `resource_type` filter.
