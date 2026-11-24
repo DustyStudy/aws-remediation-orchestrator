@@ -24,6 +24,26 @@ variable "approval_timeout_seconds" {
   }
 }
 
+variable "execution_timeout_seconds" {
+  type        = number
+  description = <<-EOT
+    Overall time limit for one state machine execution (one Security Hub
+    event). An execution still running past it is stopped, and the
+    ExecutionsTimedOut alarm fires. null (the default) uses
+    approval_timeout_seconds plus two hours, which covers one approval wait
+    and the throttling retries of every other step. It must be at least
+    approval_timeout_seconds plus one hour. A batch with more than five
+    findings waiting for approval at once waits in turns and can exceed it;
+    raise it if your events carry such batches.
+  EOT
+  default     = null
+
+  validation {
+    condition     = var.execution_timeout_seconds == null || (try(var.execution_timeout_seconds >= 3660 && var.execution_timeout_seconds <= 31536000 && floor(var.execution_timeout_seconds) == var.execution_timeout_seconds, false))
+    error_message = "execution_timeout_seconds must be null or a whole number of seconds from 3660 to 31536000 (one year, the Step Functions maximum)."
+  }
+}
+
 variable "evidence_export_schedule" {
   type        = string
   description = "EventBridge schedule expression for exporting ledger entries as compliance evidence."

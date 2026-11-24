@@ -48,6 +48,10 @@ run a removed IAM deny kept applying to the callback for over four minutes.
 ## Respond to a workflow alarm
 
 1. Locate the failed, timed-out or aborted execution in Step Functions.
+   A timed-out execution ran past `execution_timeout_seconds` (by default the
+   approval timeout plus two hours). Expect this from a batch with more than
+   five findings waiting for approval at once, which wait in turns. Unfinished
+   findings in it have no ledger entry.
 2. Set the circuit breaker if repeated failures or unexpected actions are present.
 3. Check completed Map iterations, the ledger and SSM automation history.
 4. Resolve the dependency/permission error. Reconcile missing records from

@@ -1,6 +1,11 @@
 # Each event is normalized once, then every finding follows the same bounded pipeline.
 
 locals {
+  # Long enough for one approval wait plus every step's throttling retries
+  # (12 attempts capped at 60 s, about 6 minutes each), so only a stuck
+  # execution reaches it.
+  execution_timeout_seconds = coalesce(var.execution_timeout_seconds, var.approval_timeout_seconds + 7200)
+
   # A detector burst (run 6: about 3,000 Inspector findings in minutes) starts
   # one execution per finding, and an account with a low Lambda concurrency
   # quota throttles them. Retry throttling for several minutes, with jitter so
@@ -96,8 +101,9 @@ resource "aws_sfn_state_machine" "orchestrator" {
   }
 
   definition = jsonencode({
-    Comment = "Routes a Security Hub finding through policy matching, guardrails, and (auto/approved/dry-run) remediation."
-    StartAt = "NormalizeFinding"
+    Comment        = "Routes a Security Hub finding through policy matching, guardrails, and (auto/approved/dry-run) remediation."
+    StartAt        = "NormalizeFinding"
+    TimeoutSeconds = local.execution_timeout_seconds
     States = {
       NormalizeFinding = {
         Type     = "Task"
@@ -401,4 +407,12 @@ resource "aws_sfn_state_machine" "orchestrator" {
   })
 
   tags = local.common_tags
+
+  lifecycle {
+    precondition {
+      # Cross-variable check here, not in a validation block, so Terraform 1.5 to 1.8 can run it.
+      condition     = local.execution_timeout_seconds >= var.approval_timeout_seconds + 3600
+      error_message = "execution_timeout_seconds must be at least approval_timeout_seconds plus 3600, or an approved finding could be stopped mid-run."
+    }
+  }
 }

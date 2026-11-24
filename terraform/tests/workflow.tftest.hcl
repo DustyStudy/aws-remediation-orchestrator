@@ -87,6 +87,10 @@ run "workflow_contract" {
     error_message = "Every Lambda task must retry throttling first, for several minutes with jitter, so a finding burst is not dropped."
   }
   assert {
+    condition     = jsondecode(aws_sfn_state_machine.orchestrator.definition).TimeoutSeconds == 86400 + 7200
+    error_message = "Executions need an overall time limit, or the ExecutionsTimedOut alarm can never fire."
+  }
+  assert {
     condition     = aws_lambda_function.request_approval.environment[0].variables.APPROVAL_TIMEOUT_SECONDS == "86400"
     error_message = "The approval message must state the configured timeout."
   }
@@ -98,4 +102,33 @@ run "approval_timeout_cannot_outlive_the_link" {
     approval_timeout_seconds = 90000
   }
   expect_failures = [var.approval_timeout_seconds]
+}
+
+run "execution_timeout_can_be_set" {
+  command = plan
+  variables {
+    approval_timeout_seconds  = 600
+    execution_timeout_seconds = 4200
+  }
+  assert {
+    condition     = jsondecode(aws_sfn_state_machine.orchestrator.definition).TimeoutSeconds == 4200
+    error_message = "An explicit execution_timeout_seconds must reach the state machine."
+  }
+}
+
+run "execution_timeout_must_outlast_the_approval" {
+  command = plan
+  variables {
+    approval_timeout_seconds  = 86400
+    execution_timeout_seconds = 4000
+  }
+  expect_failures = [aws_sfn_state_machine.orchestrator]
+}
+
+run "execution_timeout_rejects_too_short_values" {
+  command = plan
+  variables {
+    execution_timeout_seconds = 60
+  }
+  expect_failures = [var.execution_timeout_seconds]
 }
