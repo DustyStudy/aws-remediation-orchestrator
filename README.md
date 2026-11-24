@@ -40,7 +40,7 @@ flowchart TB
     G -- pass --> M{"Policy mode"}
     M -- approval_required --> A["Review link + IAM POST<br/>waitForTaskToken"]
     M -- auto --> X["Run SSM Automation playbook"]
-    A -- approved --> X
+    A -- "approved, guardrails rechecked" --> X
   end
   G -- blocked --> LEDGER
   M -- "ignore / dry_run" --> LEDGER

@@ -50,6 +50,7 @@ def normalize(finding: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "finding_id": finding_id,
+        "product_arn": product_arn,
         "title": title,
         "types": types,
         "type_prefix": types[0] if types else "",

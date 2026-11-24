@@ -14,6 +14,14 @@ variable "approval_timeout_seconds" {
   type        = number
   description = "How long an approval-required remediation waits for a human response before the Step Functions task times out and the finding is left unremediated."
   default     = 86400 # 24 hours
+
+  validation {
+    # The callback refuses a decision once the pending item's 24-hour expiry
+    # passes (remediation_common/approvals.py), so a longer wait could only
+    # end in a timeout.
+    condition     = var.approval_timeout_seconds >= 60 && var.approval_timeout_seconds <= 86400 && floor(var.approval_timeout_seconds) == var.approval_timeout_seconds
+    error_message = "approval_timeout_seconds must be a whole number from 60 to 86400 (the approval link's 24-hour lifetime)."
+  }
 }
 
 variable "evidence_export_schedule" {

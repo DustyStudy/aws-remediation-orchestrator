@@ -58,4 +58,30 @@ run "workflow_contract" {
     condition     = length(aws_cloudwatch_metric_alarm.execution_failed) == 3
     error_message = "Workflow failures, timeouts, and aborts need independent alarms."
   }
+  assert {
+    condition = (
+      jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States.SetDecidedByHumanApproved.Next == "RecheckGuardrails" &&
+      jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States.RecheckGuardrails.Parameters.recheck == true &&
+      jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States.RecheckGuardrails.Catch[0].Next == "RecordPipelineFailed" &&
+      jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States.RecheckChoice.Choices[0].BooleanEquals == true &&
+      jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States.RecheckChoice.Choices[0].Next == "ExecuteRemediation" &&
+      jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States.RecheckChoice.Default == "RecordBlockedAfterApproval"
+    )
+    error_message = "An approved remediation must pass the circuit breaker and denylist again, failing closed, before it runs."
+  }
+  assert {
+    condition = length([
+      for name, state in jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States :
+      name if try(state.Next, "") == "ExecuteRemediation" || anytrue([for c in try(state.Choices, []) : c.Next == "ExecuteRemediation"])
+    ]) == 2
+    error_message = "Only the auto path and the post-approval recheck may lead to remediation."
+  }
+}
+
+run "approval_timeout_cannot_outlive_the_link" {
+  command = plan
+  variables {
+    approval_timeout_seconds = 90000
+  }
+  expect_failures = [var.approval_timeout_seconds]
 }

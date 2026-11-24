@@ -87,3 +87,50 @@ def test_blocked_attempts_trip_the_breaker_at_the_multiplier(handler):
 
     assert result["guardrail_result"]["allowed"] is False
     handler._ssm.put_parameter.assert_called_once()
+
+
+def test_recheck_after_approval_honors_a_breaker_set_while_waiting(handler):
+    handler._ssm.get_parameter.return_value = {"Parameter": {"Value": "true"}}
+
+    result = handler.handler(
+        {"finding": finding("111111111111"), "policy": POLICY, "recheck": True}, Context()
+    )
+
+    assert result["guardrail_result"]["allowed"] is False
+    assert result["guardrail_result"]["reason"] == "circuit_breaker_paused"
+    # The approved finding was already counted; a recheck must not count it
+    # again or trip the breaker.
+    handler._dynamodb.update_item.assert_not_called()
+    handler._ssm.put_parameter.assert_not_called()
+
+
+def test_recheck_after_approval_honors_a_tag_added_while_waiting(handler):
+    handler._tagging.get_resources.return_value = {
+        "ResourceTagMappingList": [{"Tags": [{"Key": "do-not-remediate", "Value": "true"}]}]
+    }
+
+    result = handler.handler(
+        {"finding": finding("111111111111"), "policy": POLICY, "recheck": True}, Context()
+    )
+
+    assert result["guardrail_result"]["allowed"] is False
+    assert result["guardrail_result"]["reason"] == "resource_tagged_do_not_remediate"
+    handler._dynamodb.update_item.assert_not_called()
+
+
+def test_recheck_allows_when_nothing_changed(handler):
+    result = handler.handler(
+        {"finding": finding("111111111111"), "policy": POLICY, "recheck": True}, Context()
+    )
+
+    assert result["guardrail_result"]["allowed"] is True
+    assert result["guardrail_result"]["rate_limit"]["reason"] == "counted_before_approval"
+
+
+def test_recheck_requires_a_literal_true(handler):
+    # Only the state machine's literal flag skips the rate limit.
+    handler.handler(
+        {"finding": finding("111111111111"), "policy": POLICY, "recheck": "yes"}, Context()
+    )
+
+    handler._dynamodb.update_item.assert_called_once()

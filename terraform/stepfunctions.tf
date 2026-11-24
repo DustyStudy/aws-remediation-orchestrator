@@ -266,7 +266,46 @@ resource "aws_sfn_state_machine" "orchestrator" {
               Type       = "Pass"
               Parameters = { "actor.$" = "$.approval_result.decided_by" }
               ResultPath = "$.actor"
-              Next       = "ExecuteRemediation"
+              Next       = "RecheckGuardrails"
+            }
+            # An approval can wait for approval_timeout_seconds. Re-evaluate the
+            # circuit breaker and do-not-remediate tag before acting on it.
+            RecheckGuardrails = {
+              Type     = "Task"
+              Resource = aws_lambda_function.check_guardrails.arn
+              Parameters = {
+                "finding.$" = "$.finding"
+                "policy.$"  = "$.policy"
+                recheck     = true
+              }
+              ResultSelector = { "guardrail_result.$" = "$.guardrail_result" }
+              ResultPath     = "$.recheck"
+              Retry          = [{ ErrorEquals = ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Catch          = [{ ErrorEquals = ["States.ALL"], ResultPath = "$.error", Next = "RecordPipelineFailed" }]
+              Next           = "RecheckChoice"
+            }
+            RecheckChoice = {
+              Type = "Choice"
+              Choices = [
+                { Variable = "$.recheck.guardrail_result.allowed", BooleanEquals = true, Next = "ExecuteRemediation" },
+              ]
+              Default = "RecordBlockedAfterApproval" # anything but an explicit allow fails closed.
+            }
+            RecordBlockedAfterApproval = {
+              Type     = "Task"
+              Resource = aws_lambda_function.record_ledger.arn
+              Parameters = {
+                "timestamp.$"        = "$$.State.EnteredTime"
+                "finding.$"          = "$.finding"
+                "policy.$"           = "$.policy"
+                "guardrail_result.$" = "$.recheck.guardrail_result"
+                outcome              = "blocked"
+                "decided_by.$"       = "$.actor.actor"
+              }
+              ResultPath = null
+              OutputPath = null
+              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              End        = true
             }
             SetDecidedBySystem = {
               Type       = "Pass"

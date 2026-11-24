@@ -164,3 +164,7 @@ def test_normalize_rejects_a_malformed_vulnerabilities_list():
 def test_normalize_gives_inspector_instance_arns_the_canonical_form(resource_id, expected):
     finding = {**BASE_FINDING, "Resources": [{"Id": resource_id, "Type": "AwsEc2Instance"}]}
     assert asff.normalize(finding)["resource_arn"] == expected
+
+
+def test_normalize_keeps_the_product_arn_for_approvers():
+    assert asff.normalize(BASE_FINDING)["product_arn"] == BASE_FINDING["ProductArn"]

@@ -4,7 +4,10 @@
 
 1. Sign in to the designated approver profile with
    `aws sso login --profile approver`.
-2. Review the finding, resource, account and playbook in the notification.
+2. Review the finding, its source (`ProductArn`), resource, account and playbook
+   in the notification. A source you do not expect, such as this account's own
+   `product/<account>/default`, means the finding was imported by a caller
+   of `BatchImportFindings`, not raised by GuardDuty or Inspector.
    Opening either link only displays the request.
 3. From this repository, run `python scripts/decide.py --profile approver`.
    Paste the signed link at the hidden prompt, then type the decision to confirm.

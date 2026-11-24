@@ -14,6 +14,17 @@ follow [Semantic Versioning](https://semver.org/).
   decision after transient callback errors without reopening opposing choices.
 
 ### Security
+- An approved remediation now re-checks the circuit breaker and the
+  `do-not-remediate` tag before it runs. Before, a breaker set or a tag
+  added while the approval waited (up to `approval_timeout_seconds`) did
+  not stop the action once someone approved it. The recheck does not count
+  against the rate limit again. A blocked approval is recorded as `blocked`
+  with the approver as `decided_by`; a recheck error is recorded as `failed`.
+- `approval_timeout_seconds` is validated to 60-86400 seconds. A longer
+  wait outlived the 24-hour approval link and could only end in a timeout.
+- Approval emails name the finding's `ProductArn` and `GeneratorId`, so an
+  approver can tell a finding imported with `BatchImportFindings` from one
+  GuardDuty or Inspector raised.
 - Document adding port 3000 to `open_ingress_revoke_ports` where Flowise
   runs, after attackers exploited internet-facing Flowise servers
   (CVE-2025-59528, CVE-2026-41264; The Hacker News, 2026). The default

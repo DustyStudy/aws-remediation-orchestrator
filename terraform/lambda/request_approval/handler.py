@@ -11,6 +11,10 @@ The signing secret is pulled from Secrets Manager per invocation (cached
 per warm Lambda execution environment) rather than passed as a plaintext
 environment variable, so it never shows up in the Lambda console's
 environment-variable view or in `aws lambda get-function-configuration`.
+
+The message names the finding's ProductArn and GeneratorId. Anyone allowed
+to call securityhub:BatchImportFindings can import a finding shaped like
+GuardDuty's, so the approver should confirm the source before approving.
 """
 from __future__ import annotations
 
@@ -70,6 +74,8 @@ def handler(event: dict[str, Any], _context: Any) -> None:
             f"Finding: {finding['title']}\n"
             f"Resource: {finding['resource_arn'] or finding['resource_type']}\n"
             f"Account: {finding['account_id']}  Region: {finding['region']}\n"
+            f"Source: {finding.get('product_arn') or 'unknown'}\n"
+            f"Generator: {finding.get('generator_id') or 'unknown'}\n"
             f"Policy: {matched_policy['match_id']}  Action: {matched_policy.get('action_document')}\n"
             f"This request expires in 24 hours; if nobody responds, the finding is left unremediated.\n\n"
             f"Approve: {approve_url}\n"
