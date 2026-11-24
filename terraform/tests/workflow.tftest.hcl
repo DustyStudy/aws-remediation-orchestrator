@@ -91,6 +91,17 @@ run "workflow_contract" {
     error_message = "Executions need an overall time limit, or the ExecutionsTimedOut alarm can never fire."
   }
   assert {
+    condition = (
+      jsondecode(aws_cloudwatch_event_rule.execution_timed_out.event_pattern).source == ["aws.states"] &&
+      jsondecode(aws_cloudwatch_event_rule.execution_timed_out.event_pattern).detail.status == ["TIMED_OUT"] &&
+      jsondecode(aws_cloudwatch_event_rule.execution_timed_out.event_pattern).detail.stateMachineArn == [aws_sfn_state_machine.orchestrator.arn] &&
+      aws_cloudwatch_event_target.record_timeout.arn == aws_lambda_function.record_timeout.arn &&
+      aws_lambda_function.record_timeout.environment[0].variables.STATE_MACHINE_ARN == aws_sfn_state_machine.orchestrator.arn &&
+      aws_lambda_function.record_timeout.dead_letter_config[0].target_arn == aws_sns_topic.notifications.arn
+    )
+    error_message = "A timed-out execution runs no catch state, so its findings must reach the ledger through record_timeout, and a failed recording must notify."
+  }
+  assert {
     condition     = aws_lambda_function.request_approval.environment[0].variables.APPROVAL_TIMEOUT_SECONDS == "86400"
     error_message = "The approval message must state the configured timeout."
   }

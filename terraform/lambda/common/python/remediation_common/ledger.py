@@ -31,8 +31,9 @@ def build_ledger_item(
     timestamp: str,
 ) -> dict[str, Any]:
     """Assemble one ledger record. ``outcome`` is one of: allowed, blocked,
-    dry_run, denied, executed, failed - see docs/POLICY_REGISTRY.md for the
-    full state machine of outcomes.
+    dry_run, denied, executed, failed, skipped, or timed_out (written by
+    record_timeout when an execution hits its time limit) - see
+    docs/POLICY_REGISTRY.md for the full state machine of outcomes.
     """
     return {
         "finding_id": finding["finding_id"],
@@ -72,14 +73,15 @@ def build_evidence_document(
     outcomes = Counter(item["outcome"] for item in ledger_items)
     executed_or_dry_run = [i for i in ledger_items if i["outcome"] in ("executed", "dry_run")]
     failed = [i for i in ledger_items if i["outcome"] == "failed"]
+    timed_out = [i for i in ledger_items if i["outcome"] == "timed_out"]
     controls = sorted({c for item in ledger_items for c in item.get("nist_controls", [])})
 
-    status = "fail" if failed else ("pass" if ledger_items else "info")
+    status = "fail" if failed or timed_out else ("pass" if ledger_items else "info")
     summary = (
         f"{len(ledger_items)} finding(s) evaluated between {period_start} and {period_end}; "
         f"{outcomes.get('executed', 0)} remediated, {outcomes.get('dry_run', 0)} dry-run, "
         f"{outcomes.get('blocked', 0)} blocked by guardrail, {outcomes.get('denied', 0)} denied, "
-        f"{len(failed)} failed"
+        f"{len(failed)} failed, {len(timed_out)} timed out"
     )
 
     document: dict[str, Any] = {
@@ -94,6 +96,7 @@ def build_evidence_document(
             "blocked_by_guardrail": outcomes.get("blocked", 0),
             "denied": outcomes.get("denied", 0),
             "failed": len(failed),
+            "timed_out": len(timed_out),
             "period_start": period_start,
             "period_end": period_end,
         },
@@ -103,7 +106,7 @@ def build_evidence_document(
                 "resource": item["resource_arn"] or item["resource_type"],
                 "severity": item["severity_label"].lower(),
             }
-            for item in executed_or_dry_run + failed
+            for item in executed_or_dry_run + failed + timed_out
         ],
         "provider": "aws",
         "region": region,

@@ -1,0 +1,76 @@
+{
+  "run_id": "run-8",
+  "date": "2026-11-24",
+  "revision": "f28e775",
+  "branch": "main (v2.1.0)",
+  "deployed_resources": 140,
+  "region": "us-east-1",
+  "partition": "aws",
+  "accounts": {
+    "hub": "<hub>",
+    "member-a": "<member-a>",
+    "member-b": "<member-b>"
+  },
+  "setup": {
+    "variables": "examples/org-mode/terraform.tfvars.example with the sandbox profiles and account IDs; approval_timeout_seconds = 600; execution_timeout_seconds not set (default approval_timeout_seconds + 7200)",
+    "plan": "140 to add, 0 to change, 0 to destroy; default workspace, empty state",
+    "notification_capture": "SQS queue subscribed to the KMS-encrypted notifications topic (raw delivery off), created by live_test_approval.py setup"
+  },
+  "results": {
+    "T1_default_limit_deployed": {
+      "result": "pass",
+      "state_machine": "arn:aws:states:us-east-1:<hub>:stateMachine:remediation-orchestrator",
+      "top_level_TimeoutSeconds": 7800,
+      "approval_wait_state": "ProcessFindings/RequestApproval (lambda:invoke.waitForTaskToken)",
+      "approval_wait_TimeoutSeconds": 600
+    },
+    "E_limit_shortened_for_the_test": {
+      "how": "aws stepfunctions update-state-machine with the deployed definition, top-level TimeoutSeconds changed from 7800 to 120 and nothing else. Run by the owner on the sandbox deployment only",
+      "diff": "-  \"TimeoutSeconds\": 7800\n+  \"TimeoutSeconds\": 120",
+      "confirmed": "describe-state-machine returned a definition byte-for-byte equal to the edited file",
+      "why": "the module rejects a limit below approval_timeout_seconds + 3600, and approval_timeout_seconds is at least 60, so a natural timeout needs more than an hour"
+    },
+    "G_execution_stopped_during_the_approval_wait": {
+      "result": "pass",
+      "finding": "approval-recovery GuardDuty-shaped finding on live-test-victim-role in member-a, imported 2026-11-24T18:04:38Z, not decided",
+      "execution_started": "2026-11-24T18:04:48.476Z",
+      "execution_stopped": "2026-11-24T18:06:48.476Z",
+      "seconds": 120.0,
+      "status": "TIMED_OUT",
+      "last_events": [
+        "#26 TaskStateEntered RequestApproval",
+        "#29 TaskSubmitted",
+        "#30 ExecutionTimedOut"
+      ],
+      "member_a_unchanged": "live-test-victim-role had no inline or attached policies; no SSM Automation ran in member-a after 18:00Z, so RevokeRoleSessions never ran",
+      "ledger": "no item for the finding (table empty)",
+      "pending_approval": "left with consumed = false and no decision"
+    },
+    "H_alarm_notified": {
+      "result": "pass",
+      "alarm": "remediation-orchestrator-ExecutionsTimedOut",
+      "state_change": "OK -> ALARM at 2026-11-24T18:07:22.297Z",
+      "metric": "AWS/States ExecutionsTimedOut: 1 in the 18:06 minute, 0 in the 18:04 minute",
+      "notification": {
+        "subject": "ALARM: \"remediation-orchestrator-ExecutionsTimedOut\" in US East (N. Virginia)",
+        "NewStateValue": "ALARM",
+        "sns_timestamp": "2026-11-24T18:07:22.330Z",
+        "received_in_queue": "2026-11-24T18:08:09Z"
+      },
+      "seconds_from_timeout_to_notification": 34
+    },
+    "approval_request_text": {
+      "result": "pass",
+      "received": "2026-11-24T18:04:53Z",
+      "subject": "[approval required] Live test: role credentials used from outside AWS (approval-recovery)",
+      "text": "This request expires in 10 minutes; if nobody responds, the finding is left unremediated."
+    },
+    "teardown": {
+      "result": "pass",
+      "test_resources": "live_test_approval.py cleanup deleted the victim role, the queue and its subscription, and resolved the finding",
+      "destroy": "saved destroy plan, 0 to add, 0 to change, 140 to destroy; applied, state empty",
+      "leftovers": "none in the three accounts (checked the Application tag, IAM roles and policies, SSM documents and parameters, Lambda, Step Functions, DynamoDB, SNS, SQS, S3, CloudWatch alarms, EventBridge rules, log groups, KMS aliases, open live-test findings)",
+      "signing_secret": "in its Secrets Manager recovery window (DeletedDate 2026-11-24T18:10:08.544Z)"
+    }
+  }
+}

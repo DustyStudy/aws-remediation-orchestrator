@@ -100,6 +100,7 @@ operator to history instead of claiming success.
 | `request_approval` / `approval_callback` | Request a decision, authenticate its submission and resume the waiting task |
 | `execute_remediation` | Start and poll the SSM playbook |
 | `record_ledger` | Persist the outcome and notify |
+| `record_timeout` | After an execution times out, record each finding it left without a ledger item as `timed_out` |
 | `export_evidence` | Export ledger entries to S3 |
 
 ## Deliberate limits

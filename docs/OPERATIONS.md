@@ -50,8 +50,10 @@ run a removed IAM deny kept applying to the callback for over four minutes.
 1. Locate the failed, timed-out or aborted execution in Step Functions.
    A timed-out execution ran past `execution_timeout_seconds` (by default the
    approval timeout plus two hours). Expect this from a batch with more than
-   five findings waiting for approval at once, which wait in turns. Unfinished
-   findings in it have no ledger entry.
+   five findings waiting for approval at once, which wait in turns.
+   `record_timeout` writes a `timed_out` ledger item for each unfinished
+   finding shortly after the timeout. If that recording fails, the event arrives
+   on the notifications topic instead; reconcile those findings by hand.
 2. Set the circuit breaker if repeated failures or unexpected actions are present.
 3. Check completed Map iterations, the ledger and SSM automation history.
 4. Resolve the dependency/permission error. Reconcile missing records from

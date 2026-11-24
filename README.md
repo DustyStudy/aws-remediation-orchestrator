@@ -79,7 +79,7 @@ to a playbook owned by another deployment via
 | **Guardrails** | Org-wide circuit breaker (one SSM parameter), per-policy hourly rate limit with auto-trip on a detector storm, and a generic `do-not-remediate` resource tag denylist (Resource Groups Tagging API - works across resource types with no per-service code). |
 | **Approval flow** | `approval_required` policies pause the state machine (`waitForTaskToken`) and email signed review links; decisions require an IAM-authenticated POST; a timeout with no response is treated as a deny. |
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
-| **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, or failed - with the guardrail result and NIST control mapping that produced it. |
+| **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, failed, or timed out - with the guardrail result and NIST control mapping that produced it. |
 | **Evidence export** (S3, scheduled) | Rolls the ledger up into [`grc-evidence-automation`](https://github.com/DustyStudy/grc-evidence-automation)-shaped JSON documents. See [`docs/EVIDENCE_SCHEMA.md`](docs/EVIDENCE_SCHEMA.md). |
 | **Six owned playbooks** | See [Playbooks](#playbooks). |
 | **Org mode (optional)** | `org_member_account_ids` turns one deployment in the Security Hub delegated administrator account into the orchestrator for the organization: a playbook runs in the member account that owns the resource, through roles created there by [`terraform/modules/playbook-roles`](terraform/modules/playbook-roles). See [`docs/ORG_MODE.md`](docs/ORG_MODE.md). |
@@ -180,7 +180,7 @@ the call is made:
 | How DynamoDB parses an expression | `consumed` is a reserved word, so the approval callback's update raised `ValidationException` instead of the conditional-check error the handler caught | `ExpressionAttributeNames` in both expressions |
 | Account quotas | A new account's Lambda concurrency limit can be 10, below the reserved concurrency the functions asked for | `enable_lambda_reserved_concurrency` |
 
-Seven runs so far. The first, in one account, carried a real finding through a
+Eight runs so far. The first, in one account, carried a real finding through a
 real human deny click. The second ran org mode across four accounts:
 playbooks remediated real buckets, a security group and a role in three
 accounts, and the rate limit, circuit breaker, tag denylist and evidence
@@ -204,6 +204,10 @@ the encrypted notifications topic.
 Run 7 (2026-11-24) tested the 2.0.1 release, `18f7e74`. A burst of 500
 findings against a Lambda concurrency limit of 10 was throttled 2,155 times,
 and all 500 executions still succeeded, with one ledger item per finding.
+
+Run 8 (2026-11-24) tested the 2.1.0 release, `f28e775`. An execution still
+waiting for approval at its time limit was stopped without remediating, and
+the `ExecutionsTimedOut` alarm notification arrived.
 
 ## Repository layout
 

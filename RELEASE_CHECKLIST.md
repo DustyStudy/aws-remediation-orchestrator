@@ -13,7 +13,8 @@ partitions, single-account and org mode.
 publish. Every static, unit and mocked check passes, CI is green on the RC,
 and live run 5 (2026-11-24) passed on the RC revision `68cb528`. Live run 6
 (2026-11-24) covered Inspector CVE routing (W2) and alarm delivery (W8) on
-the 2.0.0 release `0740fab`.
+the 2.0.0 release `0740fab`. Live run 8 (2026-11-24) covered the 2.1.0
+execution time limit and the timed-out alarm on `f28e775`.
 
 ## Versioning
 
@@ -57,7 +58,7 @@ machine wiring, not AWS authorization or service behavior.
 | W5 | **Approved actions recheck the breaker and tag** (new, S1) | 4 tests in `test_check_guardrails.py`; `workflow_contract` asserts the path and that only two states reach remediation | **Run 5**: blocked with the breaker set, executed with it clear |
 | W6 | Six playbooks remediate real resources, including org mode | `test_playbook_*.py` | Runs 2-3, and run 5 for service-specific credentials (a Bedrock API key went `Inactive`) |
 | W7 | Ledger, notifications, evidence export | `test_ledger.py`, `test_record_ledger.py` | Runs 2, 4 and 5 |
-| W8 | Independent workflow alarms | `workflow_contract` (3 alarms) | Run 6: `ExecutionsAborted` and `ExecutionsFailed` notifications received through the encrypted topic. `ExecutionsTimedOut` cannot fire (no execution timeout) |
+| W8 | Independent workflow alarms | `workflow_contract` (3 alarms) | Run 6: `ExecutionsAborted` and `ExecutionsFailed` notifications received through the encrypted topic. Run 8 (2.1.0, `f28e775`): an execution past its time limit stopped as `TIMED_OUT` during the approval wait, and the `ExecutionsTimedOut` notification arrived (docs/proof/run-8.json) |
 
 Run 5 (2026-11-24) deployed the RC (`68cb528`, 141 resources) to the org-mode
 hub and two member accounts in `us-east-1`, with no mocks, and then destroyed

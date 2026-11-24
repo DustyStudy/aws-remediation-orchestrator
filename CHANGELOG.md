@@ -6,6 +6,25 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-24
+
+### Fixed
+- A timed-out execution no longer leaves its findings out of the audit
+  ledger. Step Functions stops a timed-out execution without running a
+  catch state, so a finding still waiting (usually for approval) had no
+  ledger item; live run 8 showed this. A new `record_timeout` function,
+  invoked by EventBridge when an execution times out, writes a `timed_out`
+  item for each finding of the execution that has no item from the
+  execution's lifetime. The write is conditional, so a redelivered event
+  writes nothing twice, and a failed recording goes to the notifications
+  topic. The evidence export counts `timed_out` items and marks the period
+  `fail`, like `failed` ones.
+
+### Documentation
+- Live run 8 evidence: the 2.1.0 execution time limit stops an execution
+  waiting for approval, and the `ExecutionsTimedOut` alarm notifies
+  (`docs/PROOF.md`, `docs/proof/run-8.json`).
+
 ## [2.1.0] - 2026-11-24
 
 ### Added
@@ -240,7 +259,8 @@ Found during the real-account run in `docs/PROOF.md`:
 - The KMS key policy did not allow the Step Functions and API Gateway log
   groups, so their creation failed.
 
-[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...v2.0.0
