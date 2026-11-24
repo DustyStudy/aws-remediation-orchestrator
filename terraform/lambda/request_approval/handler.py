@@ -33,6 +33,8 @@ PENDING_APPROVALS_TABLE_NAME = os.environ["PENDING_APPROVALS_TABLE_NAME"]
 NOTIFICATION_TOPIC_ARN = os.environ["NOTIFICATION_TOPIC_ARN"]
 APPROVAL_BASE_URL = os.environ["APPROVAL_BASE_URL"]
 SIGNING_SECRET_ARN = os.environ["SIGNING_SECRET_ARN"]
+# The state's TimeoutSeconds, so the message states the real deadline.
+APPROVAL_TIMEOUT_SECONDS = int(os.environ.get("APPROVAL_TIMEOUT_SECONDS", "86400"))
 
 _secret_cache: dict[str, str] = {}
 
@@ -77,8 +79,18 @@ def handler(event: dict[str, Any], _context: Any) -> None:
             f"Source: {finding.get('product_arn') or 'unknown'}\n"
             f"Generator: {finding.get('generator_id') or 'unknown'}\n"
             f"Policy: {matched_policy['match_id']}  Action: {matched_policy.get('action_document')}\n"
-            f"This request expires in 24 hours; if nobody responds, the finding is left unremediated.\n\n"
+            f"This request expires in {_duration(APPROVAL_TIMEOUT_SECONDS)}; "
+            "if nobody responds, the finding is left unremediated.\n\n"
             f"Approve: {approve_url}\n"
             f"Deny:    {deny_url}\n"
         ),
     )
+
+
+def _duration(seconds: int) -> str:
+    """Whole hours or minutes, rounded down, never below one minute."""
+    if seconds >= 3600 and seconds % 3600 == 0:
+        hours = seconds // 3600
+        return f"{hours} hour{'s' if hours != 1 else ''}"
+    minutes = max(seconds // 60, 1)
+    return f"{minutes} minute{'s' if minutes != 1 else ''}"

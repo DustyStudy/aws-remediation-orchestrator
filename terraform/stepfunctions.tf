@@ -1,5 +1,21 @@
 # Each event is normalized once, then every finding follows the same bounded pipeline.
 
+locals {
+  # A detector burst (run 6: about 3,000 Inspector findings in minutes) starts
+  # one execution per finding, and an account with a low Lambda concurrency
+  # quota throttles them. Retry throttling for several minutes, with jitter so
+  # the retries spread out, before a finding falls to a failure path. A
+  # throttled invocation never ran, so retrying it cannot repeat an action.
+  lambda_throttle_retry = {
+    ErrorEquals     = ["Lambda.TooManyRequestsException"]
+    IntervalSeconds = 2
+    MaxAttempts     = 12
+    BackoffRate     = 2
+    MaxDelaySeconds = 60
+    JitterStrategy  = "FULL"
+  }
+}
+
 resource "aws_cloudwatch_log_group" "state_machine" {
   name              = "/aws/vendedlogs/states/${local.name_prefix}"
   retention_in_days = var.lambda_log_retention_days
@@ -86,7 +102,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
       NormalizeFinding = {
         Type     = "Task"
         Resource = aws_lambda_function.normalize_finding.arn
-        Retry    = [{ ErrorEquals = ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+        Retry    = [local.lambda_throttle_retry, { ErrorEquals = ["Lambda.ServiceException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
         Next     = "ProcessFindings"
       }
       ProcessFindings = {
@@ -118,7 +134,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             LookupPolicy = {
@@ -127,7 +143,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               Parameters = {
                 "finding.$" = "$.finding"
               }
-              Retry = [{ ErrorEquals = ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry = [local.lambda_throttle_retry, { ErrorEquals = ["Lambda.ServiceException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               Next  = "CheckGuardrails"
               Catch = [{ ErrorEquals = ["States.ALL"], ResultPath = "$.error", Next = "RecordPipelineFailed" }]
             }
@@ -138,7 +154,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
                 "finding.$" = "$.finding"
                 "policy.$"  = "$.policy"
               }
-              Retry = [{ ErrorEquals = ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry = [local.lambda_throttle_retry, { ErrorEquals = ["Lambda.ServiceException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               Next  = "GuardrailChoice"
               Catch = [{ ErrorEquals = ["States.ALL"], ResultPath = "$.error", Next = "RecordPipelineFailed" }]
             }
@@ -162,7 +178,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             ModeChoice = {
@@ -188,7 +204,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             RecordDryRun = {
@@ -204,7 +220,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             RequestApproval = {
@@ -220,6 +236,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               TimeoutSeconds = var.approval_timeout_seconds
               ResultPath     = "$.approval_result"
+              Retry          = [local.lambda_throttle_retry]
               Catch = [
                 { ErrorEquals = ["States.Timeout"], ResultPath = "$.error", Next = "SetDeniedByTimeout" },
                 { ErrorEquals = ["States.ALL"], ResultPath = "$.error", Next = "RecordPipelineFailed" },
@@ -259,7 +276,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             SetDecidedByHumanApproved = {
@@ -280,7 +297,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultSelector = { "guardrail_result.$" = "$.guardrail_result" }
               ResultPath     = "$.recheck"
-              Retry          = [{ ErrorEquals = ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry          = [local.lambda_throttle_retry, { ErrorEquals = ["Lambda.ServiceException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               Catch          = [{ ErrorEquals = ["States.ALL"], ResultPath = "$.error", Next = "RecordPipelineFailed" }]
               Next           = "RecheckChoice"
             }
@@ -304,7 +321,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             SetDecidedBySystem = {
@@ -321,7 +338,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
                 "policy.$"  = "$.policy"
               }
               ResultPath = "$.exec"
-              Retry      = [{ ErrorEquals = ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["Lambda.ServiceException"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               Catch = [
                 { ErrorEquals = ["States.ALL"], ResultPath = "$.error", Next = "RecordExecutionFailed" },
               ]
@@ -342,7 +359,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             RecordExecutionFailed = {
@@ -358,7 +375,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
             RecordPipelineFailed = {
@@ -373,7 +390,7 @@ resource "aws_sfn_state_machine" "orchestrator" {
               }
               ResultPath = null
               OutputPath = null
-              Retry      = [{ ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
+              Retry      = [local.lambda_throttle_retry, { ErrorEquals = ["States.TaskFailed"], IntervalSeconds = 2, MaxAttempts = 3, BackoffRate = 2 }]
               End        = true
             }
           }
