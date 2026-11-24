@@ -6,6 +6,8 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-24
+
 ### Fixed
 - A burst of findings no longer drops most of them when the account's Lambda
   concurrency quota is low. In live run 6, about 3,000 Amazon Inspector
@@ -17,6 +19,11 @@ follow [Semantic Versioning](https://semver.org/).
   the retry cannot repeat an action.
 - Approval messages state the configured `approval_timeout_seconds` instead
   of always saying "24 hours".
+
+### Maintenance
+- Live run 6 on 2.0.0: Amazon Inspector CVE routing isolated a real
+  instance, and the aborted and failed workflow alarms were delivered through
+  the encrypted topic (`docs/proof/run-6.json`).
 
 ## [2.0.0] - 2026-11-24
 
@@ -219,7 +226,8 @@ Found during the real-account run in `docs/PROOF.md`:
 - The KMS key policy did not allow the Step Functions and API Gateway log
   groups, so their creation failed.
 
-[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.0.0...v1.1.0
