@@ -75,7 +75,7 @@ to a playbook owned by another deployment via
 
 | Piece | What it does |
 |---|---|
-| **Policy registry** (DynamoDB) | Matches a finding's ASFF type, generator or CVE (and optionally its resource type) against rules that set mode, target playbook, NIST 800-53 mapping, and rate limit. See [`docs/POLICY_REGISTRY.md`](docs/POLICY_REGISTRY.md). |
+| **Policy registry** (DynamoDB) | Matches a finding's ASFF type, generator or CVE (and optionally its resource type and the product that raised it) against rules that set mode, target playbook, NIST 800-53 mapping, and rate limit. See [`docs/POLICY_REGISTRY.md`](docs/POLICY_REGISTRY.md). |
 | **Guardrails** | Org-wide circuit breaker (one SSM parameter), per-policy hourly rate limit with auto-trip on a detector storm, and a generic `do-not-remediate` resource tag denylist (Resource Groups Tagging API - works across resource types with no per-service code). |
 | **Approval flow** | `approval_required` policies pause the state machine (`waitForTaskToken`) and email signed review links; decisions require an IAM-authenticated POST; a timeout with no response is treated as a deny. |
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
@@ -190,6 +190,12 @@ and recorded a denied and a timed-out approval. The fourth ran the
 IAM-authenticated approval flow, recovered a failed delivery and processed a
 three-finding batch. [`docs/PROOF.md`](docs/PROOF.md) has the evidence for each
 claim and what the runs did not cover.
+
+Run 4 tested revision `f2ac7c0`. Changes after it, including the
+post-approval guardrail recheck, the policy `product` filter and
+service-specific credential deactivation, have unit and mocked Terraform
+tests but no live run yet. [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)
+lists the live checks they need.
 
 ## Repository layout
 

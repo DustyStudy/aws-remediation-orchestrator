@@ -58,6 +58,7 @@ variable "policy_registry_seed" {
     max_actions_per_hour  = optional(number, 10)
     severity_threshold    = optional(string, null)
     resource_type         = optional(string, "")
+    product               = optional(string, "")
     description           = string
   }))
 

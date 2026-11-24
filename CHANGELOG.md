@@ -22,6 +22,12 @@ follow [Semantic Versioning](https://semver.org/).
   with the approver as `decided_by`; a recheck error is recorded as `failed`.
 - `approval_timeout_seconds` is validated to 60-86400 seconds. A longer
   wait outlived the 24-hour approval link and could only end in a timeout.
+- Policy items take an optional `product` (`aws/guardduty`,
+  `aws/inspector`, `aws/securityhub`) that must match the product in the
+  finding's `ProductArn`. A finding imported with `BatchImportFindings` gets
+  `<account>/default`, so it can no longer match a rule meant for GuardDuty.
+  `terraform.tfvars.example` sets it on every acting rule. Existing items
+  without it match as before.
 - Approval emails name the finding's `ProductArn` and `GeneratorId`, so an
   approver can tell a finding imported with `BatchImportFindings` from one
   GuardDuty or Inspector raised.

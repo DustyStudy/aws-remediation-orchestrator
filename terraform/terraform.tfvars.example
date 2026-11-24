@@ -11,20 +11,28 @@
 # See docs/POLICY_REGISTRY.md for the full schema and more examples,
 # including how to point action_document at a playbook owned by another
 # deployment via external_ssm_document_arns.
+#
+# product binds each acting rule to the detector that really raised the
+# finding ("aws/guardduty", "aws/inspector", or "aws/securityhub" for control
+# findings). Without it, anyone allowed securityhub:BatchImportFindings can
+# import a finding shaped like GuardDuty's and match the rule. Keep it on
+# every auto and approval_required rule. (examples/org-mode seeds its own
+# rules without it, because its live tests import their findings.)
 
 notification_email = "security-team@example.com"
 
 policy_registry_seed = {
   default = {
-    match_field  = "type_prefix"
-    match_value  = ""
-    mode         = "dry_run"
-    description  = "Fallback when nothing more specific matches. Dry-run so an unrecognized finding is logged, never silently auto-remediated."
+    match_field = "type_prefix"
+    match_value = ""
+    mode        = "dry_run"
+    description = "Fallback when nothing more specific matches. Dry-run so an unrecognized finding is logged, never silently auto-remediated."
   }
 
   s3-public-access = {
     match_field           = "type_prefix"
     match_value           = "Software and Configuration Checks/S3"
+    product               = "aws/securityhub"
     mode                  = "auto"
     action_document       = "remediation-orchestrator-S3PublicAccessRemediation"
     action_document_owner = "self"
@@ -40,6 +48,7 @@ policy_registry_seed = {
   guardduty-compromised-credentials = {
     match_field           = "type_prefix"
     match_value           = "TTPs/UnauthorizedAccess:IAMUser-MaliciousIPCaller"
+    product               = "aws/guardduty"
     mode                  = "approval_required"
     action_document       = "remediation-orchestrator-DisableCompromisedCredentials"
     action_document_owner = "self"
@@ -53,6 +62,7 @@ policy_registry_seed = {
   open-ssh = {
     match_field           = "generator_id"
     match_value           = "security-control/EC2.13"
+    product               = "aws/securityhub"
     mode                  = "auto"
     action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
     action_document_owner = "self"
@@ -65,6 +75,7 @@ policy_registry_seed = {
   open-rdp = {
     match_field           = "generator_id"
     match_value           = "security-control/EC2.14"
+    product               = "aws/securityhub"
     mode                  = "auto"
     action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
     action_document_owner = "self"
@@ -81,6 +92,7 @@ policy_registry_seed = {
   open-high-risk-ports = {
     match_field           = "generator_id"
     match_value           = "security-control/EC2.19"
+    product               = "aws/securityhub"
     mode                  = "auto"
     action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
     action_document_owner = "self"
@@ -98,6 +110,7 @@ policy_registry_seed = {
   open-unauthorized-ports = {
     match_field           = "generator_id"
     match_value           = "security-control/EC2.18"
+    product               = "aws/securityhub"
     mode                  = "auto"
     action_document       = "remediation-orchestrator-RevokeOpenSshRdpIngress"
     action_document_owner = "self"
@@ -111,6 +124,7 @@ policy_registry_seed = {
   stale-access-keys = {
     match_field           = "generator_id"
     match_value           = "security-control/IAM.3"
+    product               = "aws/securityhub"
     mode                  = "approval_required"
     action_document       = "remediation-orchestrator-DeactivateStaleAccessKeys"
     action_document_owner = "self"
@@ -123,6 +137,7 @@ policy_registry_seed = {
   guardduty-compromised-instance = {
     match_field           = "type_prefix"
     match_value           = "TTPs/Command and Control"
+    product               = "aws/guardduty"
     mode                  = "approval_required"
     action_document       = "remediation-orchestrator-IsolateCompromisedInstance"
     action_document_owner = "self"
@@ -144,6 +159,7 @@ policy_registry_seed = {
   inspector-php2shell-cve-2026-109618 = {
     match_field           = "vulnerability_id"
     match_value           = "CVE-2026-109618"
+    product               = "aws/inspector"
     resource_type         = "AwsEc2Instance"
     mode                  = "approval_required"
     action_document       = "remediation-orchestrator-IsolateCompromisedInstance"
@@ -157,6 +173,7 @@ policy_registry_seed = {
   inspector-php2shell-cve-2026-109619 = {
     match_field           = "vulnerability_id"
     match_value           = "CVE-2026-109619"
+    product               = "aws/inspector"
     resource_type         = "AwsEc2Instance"
     mode                  = "approval_required"
     action_document       = "remediation-orchestrator-IsolateCompromisedInstance"
@@ -172,6 +189,7 @@ policy_registry_seed = {
   guardduty-role-credential-exfiltration = {
     match_field           = "type_prefix"
     match_value           = "Effects/Data Exfiltration/UnauthorizedAccess:IAMUser-InstanceCredentialExfiltration"
+    product               = "aws/guardduty"
     mode                  = "approval_required"
     action_document       = "remediation-orchestrator-RevokeRoleSessions"
     action_document_owner = "self"

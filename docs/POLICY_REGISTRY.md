@@ -20,6 +20,7 @@ the table for a break-glass change without a `terraform apply`.
 | `max_actions_per_hour` | number | Rate limit for this policy specifically (see `check_guardrails`). |
 | `severity_threshold` | string or null | Minimum ASFF severity label (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`) to act on. Below it, the finding is treated as `ignore`. |
 | `resource_type` | string | Optional. ASFF resource type (for example `AwsEc2Instance`) the finding's first resource must have. `""` matches any. Inspector reports one CVE on instances, ECR images and Lambda functions alike, and a playbook usually handles only one of them. |
+| `product` | string | Optional. The product that imported the finding, as `<company>/<product>` from its `ProductArn`: `aws/guardduty`, `aws/inspector`, `aws/securityhub` (control findings). `""` matches any. Security Hub sets the `ProductArn` from the importing integration, and a caller of `BatchImportFindings` gets `<account>/default`, so a rule with `product` can't be triggered by a self-imported finding. Recommended on every `auto` and `approval_required` rule for an AWS detector. |
 | `description` | string | Human-readable explanation, shown nowhere except the table itself - keep it useful for the next person editing this rule. |
 
 ## Matching
@@ -29,8 +30,9 @@ the table for a break-glass change without a `terraform apply`.
 `match_value` is the longest prefix match against the finding's
 `match_field` (an exact match for `vulnerability_id`, since
 `CVE-2026-1096` is a prefix of `CVE-2026-109618`), skipping items whose
-`resource_type` differs from the finding's. On equal length, a rule with a
-`resource_type` beats one without, then the lower `match_id` wins. Length
+`resource_type` or `product` differs from the finding's. On equal length, a
+rule with a `resource_type` beats one without, then one with a `product`,
+then the lower `match_id` wins. Length
 is compared across fields, so a type prefix longer than a CVE id beats
 a `vulnerability_id` rule for the same finding. The `default` item is excluded from that comparison and
 used only as a fallback, so it's safe to leave its `match_value` empty -
