@@ -180,7 +180,7 @@ the call is made:
 | How DynamoDB parses an expression | `consumed` is a reserved word, so the approval callback's update raised `ValidationException` instead of the conditional-check error the handler caught | `ExpressionAttributeNames` in both expressions |
 | Account quotas | A new account's Lambda concurrency limit can be 10, below the reserved concurrency the functions asked for | `enable_lambda_reserved_concurrency` |
 
-Five runs so far. The first, in one account, carried a real finding through a
+Six runs so far. The first, in one account, carried a real finding through a
 real human deny click. The second ran org mode across four accounts:
 playbooks remediated real buckets, a security group and a role in three
 accounts, and the rate limit, circuit breaker, tag denylist and evidence
@@ -195,6 +195,11 @@ Run 5 (2026-11-24) tested the release candidate, `68cb528`. A circuit
 breaker set while an approval waited stopped the approved playbook. A
 self-imported copy of a GuardDuty finding no longer matched a GuardDuty-only
 rule. A Bedrock API key was deactivated.
+
+Run 6 (2026-11-24) tested the 2.0.0 release, `0740fab`. A real Amazon
+Inspector CVE finding matched a CVE rule and, once approved, isolated the
+instance. The aborted and failed execution alarms reached a queue through
+the encrypted notifications topic.
 
 ## Repository layout
 

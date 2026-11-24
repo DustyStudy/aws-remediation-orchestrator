@@ -1,0 +1,366 @@
+{
+  "run_id": "20261124T152800",
+  "date": "2026-11-24",
+  "revision": "0740fab",
+  "branch": "main (v2.0.0)",
+  "deployed_resources": 141,
+  "region": "us-east-1",
+  "partition": "aws",
+  "accounts": {
+    "hub": "<hub>",
+    "member-a": "<member-a>",
+    "member-b": "<member-b>"
+  },
+  "setup": {
+    "approval_timeout_seconds": 600,
+    "evidence_bucket_force_destroy": true,
+    "policy_changes_from_example": {
+      "inspector-run6-cve": {
+        "match_field": "vulnerability_id",
+        "match_value": "CVE-2023-0179",
+        "product": "aws/inspector",
+        "resource_type": "AwsEc2Instance",
+        "mode": "approval_required",
+        "action_document": "remediation-orchestrator-IsolateCompromisedInstance",
+        "severity_threshold": "HIGH",
+        "added": "after the first Inspector findings arrived, with a one-item terraform apply"
+      }
+    },
+    "notification_email": "placeholder address; approval requests and alarms were read from an SQS queue subscribed to the notifications topic",
+    "approver": "hub profile (OrganizationAccountAccessRole), submitting with scripts/decide.py submit()",
+    "inspector": "Amazon Inspector v2 was disabled in member-a and no delegated admin was set. Enabled for EC2 only for this run, disabled in teardown",
+    "test_instance": {
+      "id": "i-02c708ed7c6ee6d83",
+      "account": "member-a",
+      "type": "t3.micro",
+      "ami": "amzn2-ami-kernel-5.10-hvm-2.0.20230119.1-x86_64-gp2",
+      "inbound": "none (security group with no ingress rules)",
+      "ssm": "Online, agent 3.3.5828.0, instance profile with AmazonSSMManagedInstanceCore"
+    }
+  },
+  "results": {
+    "E_inspector_cve_routing": {
+      "result": "pass",
+      "finding": {
+        "product_arn": "arn:aws:securityhub:us-east-1::product/aws/inspector",
+        "id": "arn:aws:inspector2:us-east-1:<member-a>:finding/3eb518700de6ac920d1fc8f3673ce3b8",
+        "cve": "CVE-2023-0179",
+        "severity": "HIGH",
+        "resource_type": "AwsEc2Instance"
+      },
+      "how_it_reached_the_pipeline": "Inspector exported the finding to member-a's Security Hub, which aggregated it to the hub, before the rule existed. After the rule was added, the hub called BatchUpdateFindings (Workflow NOTIFIED plus a note) on the real finding; Security Hub emitted a 'Findings - Imported' event and the EventBridge rule started the state machine",
+      "batch_update": {
+        "processed": 1,
+        "unprocessed": []
+      },
+      "approval_message": {
+        "subject": "[approval required] CVE-2023-0179 - kernel",
+        "timestamp": "2026-11-24T15:44:40.438Z",
+        "body": "A remediation needs approval before it runs.\n\nFinding: CVE-2023-0179 - kernel\nResource: arn:aws:ec2:us-east-1:<member-a>:instance/i-02c708ed7c6ee6d83\nAccount: <member-a>  Region: us-east-1\nSource: arn:aws:securityhub:us-east-1::product/aws/inspector\nGenerator: AWSInspector\nPolicy: inspector-run6-cve  Action: remediation-orchestrator-IsolateCompromisedInstance\nThis request expires in 24 hours; if nobody responds, the finding is left unremediated.\n\nApprove: <signed link>\nDeny:    <signed link>\n"
+      },
+      "approve_response": {
+        "status": 200,
+        "body": "Decision delivered: approve.",
+        "at": "2026-11-24T15:44:45Z"
+      },
+      "ledger_outcome": [
+        {
+          "policy_id": "inspector-run6-cve",
+          "mode": "approval_required",
+          "outcome": "executed",
+          "guardrail_reason": null,
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+          "execution_id": "d1718cef-92ab-489b-84e6-00a0fcbc8aad",
+          "action_document": "remediation-orchestrator-IsolateCompromisedInstance",
+          "execution_ts": "2026-11-24T15:45:00.146Z"
+        }
+      ],
+      "automation": {
+        "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-IsolateCompromisedInstance",
+        "status": "Success",
+        "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/remediation-orchestrator",
+        "steps": {
+          "IsolateInstance": "Success",
+          "CheckIfShouldStop": "Success",
+          "NotifyStep": "Success",
+          "StopInstanceStep": "Pending"
+        },
+        "outputs": {}
+      },
+      "instance_after": {
+        "state": "running",
+        "eni_groups": {
+          "eni-00b35466c3b3abc1a": [
+            [
+              "sg-0b9cf7a8cdff1f61c",
+              "remediation-orchestrator-isolation-vpc-0d03e7f7b54b1847d"
+            ]
+          ]
+        }
+      },
+      "isolation_group": {
+        "sg-0b9cf7a8cdff1f61c": {
+          "name": "remediation-orchestrator-isolation-vpc-0d03e7f7b54b1847d",
+          "ingress": [],
+          "egress": [],
+          "tags": {
+            "Purpose": "incident-response-isolation"
+          }
+        }
+      },
+      "snapshots": [
+        {
+          "id": "snap-0bcf1eb020954bd59",
+          "volume": "vol-0bb720bd2d76821a0",
+          "state": "completed",
+          "start": "2026-11-24 15:44:48.493000+00:00",
+          "tags": {
+            "IsolationFindingId": "arn:aws:inspector2:us-east-1:<member-a>:finding/3eb518700de6ac920d1fc8f3673ce3b8",
+            "SourceInstanceId": "i-02c708ed7c6ee6d83"
+          }
+        }
+      ]
+    },
+    "F_failure_alarm_delivery": {
+      "result": "pass",
+      "delivery_path": "CloudWatch alarm action -> KMS-encrypted SNS topic -> SQS queue subscription",
+      "ExecutionsAborted": {
+        "trigger": "StopExecution on an approval-required execution waiting for its task token",
+        "execution": {
+          "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:1d9d8a5e-f15e-92a4-aa05-1ce3ee0e77ef_5e478981-cc9e-ff9f-9a2a-55e477224301",
+          "stopped_at": "2026-11-24T15:45:19Z"
+        }
+      },
+      "ExecutionsFailed": {
+        "unplanned_trigger": "the Inspector flood (below) failed executions from 15:35; the alarm went to ALARM at 15:36:44 and its notification arrived",
+        "controlled_trigger": "inline deny of lambda:InvokeFunction on normalize_finding on the state machine role, one execution, deny removed right after",
+        "fault": {
+          "role": "remediation-orchestrator-state-machine-role",
+          "function": "arn:aws:lambda:us-east-1:<hub>:function:remediation-orchestrator-normalize-finding",
+          "added_at": "2026-11-24T15:46:27Z",
+          "removed_at": "2026-11-24T15:47:50Z"
+        },
+        "execution": {
+          "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:37cd84bb-c07e-68fc-9ba8-94272195a137_058c4ac5-0aee-17cf-a6d9-2e78faeca7b0",
+          "status": "FAILED",
+          "stopped": "2026-11-24 09:47:35.130000-06:00",
+          "error": "Lambda.AWSLambdaException",
+          "cause": "User: arn:aws:sts::<hub>:assumed-role/remediation-orchestrator-state-machine-role/CcOkBtNGBGPhnfIpDtFVZHQNniSlTRpv is not authorized to perform: lambda:InvokeFunction on resource: arn:aws:lambda:us-east-1:<hub>:function:remediation-orchestrator-normalize-finding with an explicit deny i"
+        }
+      },
+      "ExecutionsTimedOut": "not triggered: the state machine sets no execution timeout",
+      "alarm_history": {
+        "ExecutionsFailed": {
+          "state": "ALARM",
+          "history": [
+            {
+              "time": "2026-11-24 09:48:44.896000-06:00",
+              "summary": "Alarm updated from OK to ALARM"
+            },
+            {
+              "time": "2026-11-24 09:45:44.891000-06:00",
+              "summary": "Alarm updated from ALARM to OK"
+            },
+            {
+              "time": "2026-11-24 09:36:44.894000-06:00",
+              "summary": "Alarm updated from OK to ALARM"
+            },
+            {
+              "time": "2026-11-24 09:34:44.893000-06:00",
+              "summary": "Alarm updated from INSUFFICIENT_DATA to OK"
+            },
+            {
+              "time": "2026-11-24 07:52:41.831000-06:00",
+              "summary": "Alarm updated from INSUFFICIENT_DATA to OK"
+            }
+          ],
+          "actions": [
+            {
+              "time": "2026-11-24 09:48:44.983000-06:00",
+              "summary": "Successfully executed action arn:aws:sns:us-east-1:<hub>:remediation-orchestrator-notifications"
+            },
+            {
+              "time": "2026-11-24 09:36:44.955000-06:00",
+              "summary": "Successfully executed action arn:aws:sns:us-east-1:<hub>:remediation-orchestrator-notifications"
+            }
+          ]
+        },
+        "ExecutionsTimedOut": {
+          "state": "OK",
+          "history": [
+            {
+              "time": "2026-11-24 09:34:33.387000-06:00",
+              "summary": "Alarm updated from INSUFFICIENT_DATA to OK"
+            },
+            {
+              "time": "2026-11-24 07:52:56.988000-06:00",
+              "summary": "Alarm updated from INSUFFICIENT_DATA to OK"
+            }
+          ],
+          "actions": []
+        },
+        "ExecutionsAborted": {
+          "state": "OK",
+          "history": [
+            {
+              "time": "2026-11-24 09:48:59.105000-06:00",
+              "summary": "Alarm updated from ALARM to OK"
+            },
+            {
+              "time": "2026-11-24 09:46:59.103000-06:00",
+              "summary": "Alarm updated from OK to ALARM"
+            },
+            {
+              "time": "2026-11-24 09:34:59.105000-06:00",
+              "summary": "Alarm updated from INSUFFICIENT_DATA to OK"
+            },
+            {
+              "time": "2026-11-24 07:53:09.812000-06:00",
+              "summary": "Alarm updated from INSUFFICIENT_DATA to OK"
+            }
+          ],
+          "actions": [
+            {
+              "time": "2026-11-24 09:46:59.180000-06:00",
+              "summary": "Successfully executed action arn:aws:sns:us-east-1:<hub>:remediation-orchestrator-notifications"
+            }
+          ]
+        }
+      },
+      "received_sns_messages": [
+        {
+          "sns_timestamp": "2026-11-24T15:36:44.917Z",
+          "subject": "ALARM: \"remediation-orchestrator-ExecutionsFailed\" in US East (N. Virginia)",
+          "message": {
+            "AlarmName": "remediation-orchestrator-ExecutionsFailed",
+            "NewStateValue": "ALARM",
+            "OldStateValue": "OK",
+            "NewStateReason": "Threshold Crossed: 1 datapoint [217.0 (24/11/26 15:35:00)] was greater than the threshold (0.0).",
+            "StateChangeTime": "2026-11-24T15:36:44.894+0000",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:<hub>:alarm:remediation-orchestrator-ExecutionsFailed",
+            "Trigger": {
+              "MetricName": "ExecutionsFailed",
+              "Namespace": "AWS/States",
+              "Statistic": "SUM",
+              "Period": 60,
+              "Threshold": 0.0,
+              "ComparisonOperator": "GreaterThanThreshold",
+              "TreatMissingData": "notBreaching"
+            }
+          }
+        },
+        {
+          "sns_timestamp": "2026-11-24T15:46:59.136Z",
+          "subject": "ALARM: \"remediation-orchestrator-ExecutionsAborted\" in US East (N. Virginia)",
+          "message": {
+            "AlarmName": "remediation-orchestrator-ExecutionsAborted",
+            "NewStateValue": "ALARM",
+            "OldStateValue": "OK",
+            "NewStateReason": "Threshold Crossed: 1 datapoint [1.0 (24/11/26 15:45:00)] was greater than the threshold (0.0).",
+            "StateChangeTime": "2026-11-24T15:46:59.103+0000",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:<hub>:alarm:remediation-orchestrator-ExecutionsAborted",
+            "Trigger": {
+              "MetricName": "ExecutionsAborted",
+              "Namespace": "AWS/States",
+              "Statistic": "SUM",
+              "Period": 60,
+              "Threshold": 0.0,
+              "ComparisonOperator": "GreaterThanThreshold",
+              "TreatMissingData": "notBreaching"
+            }
+          }
+        },
+        {
+          "sns_timestamp": "2026-11-24T15:48:44.948Z",
+          "subject": "ALARM: \"remediation-orchestrator-ExecutionsFailed\" in US East (N. Virginia)",
+          "message": {
+            "AlarmName": "remediation-orchestrator-ExecutionsFailed",
+            "NewStateValue": "ALARM",
+            "OldStateValue": "OK",
+            "NewStateReason": "Threshold Crossed: 1 datapoint [1.0 (24/11/26 15:47:00)] was greater than the threshold (0.0).",
+            "StateChangeTime": "2026-11-24T15:48:44.896+0000",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:<hub>:alarm:remediation-orchestrator-ExecutionsFailed",
+            "Trigger": {
+              "MetricName": "ExecutionsFailed",
+              "Namespace": "AWS/States",
+              "Statistic": "SUM",
+              "Period": 60,
+              "Threshold": 0.0,
+              "ComparisonOperator": "GreaterThanThreshold",
+              "TreatMissingData": "notBreaching"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "found": {
+    "inspector_flood": {
+      "what": "Inspector raised about 3,000 package-vulnerability findings on the one instance within minutes. Each started an execution",
+      "hub_lambda_concurrency_limit": 10,
+      "executions": {
+        "FAILED": 1702,
+        "SUCCEEDED": 931,
+        "RUNNING_at_check": 196
+      },
+      "error": "Lambda.TooManyRequestsException after the state machine's retries (3 attempts, 2 s interval, backoff 2)",
+      "ledger_at_check": {
+        "default blocked (circuit_breaker_paused; rate_limit_exceeded)": 481,
+        "n/a failed (Lambda.TooManyRequestsException)": 416,
+        "default blocked (rate_limit_exceeded)": 20,
+        "default dry_run": 10
+      },
+      "circuit_breaker": "tripped by the default policy's rate limit; cleared before check E",
+      "notifications_to_queue": {
+        "[blocked]": 708,
+        "[failed]": 582,
+        "[executed]": 1,
+        "[approval required]": 1
+      }
+    },
+    "approval_message_timeout_text": "the approval request says it expires in 24 hours (hard-coded in request_approval/handler.py) while approval_timeout_seconds was 600"
+  },
+  "teardown": [
+    "state machine role inline policies: ['remediation-orchestrator-state-machine-policy']",
+    "terminated i-02c708ed7c6ee6d83",
+    "deleted snap-0bcf1eb020954bd59",
+    "deleted sg-0f8b2bbbb87881eb5 aro-run6-inspector",
+    "deleted sg-0b9cf7a8cdff1f61c remediation-orchestrator-isolation-vpc-0d03e7f7b54b1847d",
+    "deleted instance profile and role aro-run6-inspector",
+    "inspector disable: DISABLING {'ec2': 'DISABLING', 'ecr': 'DISABLED', 'lambda': 'DISABLED', 'lambdaCode': 'DISABLED', 'codeRepository': 'DISABLED'}",
+    "archived aborted",
+    "archived failed",
+    "unsubscribed and deleted aro-run6-notifications",
+    "terraform destroy from a saved plan: 141 destroyed",
+    "synthetic check F findings archived; Inspector findings closed by disabling Inspector"
+  ],
+  "leftover_sweep": {
+    "hub": {
+      "secrets_incl_pending_deletion": [
+        [
+          "remediation-orchestrator-approval-signing-secret",
+          "2026-11-24 09:51:33.777000-06:00"
+        ]
+      ],
+      "inspector": {
+        "status": "DISABLED",
+        "ec2": "DISABLED"
+      }
+    },
+    "member-a": {
+      "inspector": {
+        "status": "DISABLED",
+        "ec2": "DISABLED"
+      }
+    },
+    "member-b": {
+      "inspector": {
+        "status": "DISABLED",
+        "ec2": "DISABLED"
+      }
+    }
+  },
+  "left_behind": [
+    "remediation-orchestrator-approval-signing-secret (hub) in its Secrets Manager recovery window"
+  ]
+}
