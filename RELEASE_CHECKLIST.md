@@ -11,9 +11,9 @@ partitions, single-account and org mode.
 
 **Status: READY**, pending the owner's approval to merge, tag 2.0.0 and
 publish. Every static, unit and mocked check passes, CI is green on the RC,
-and live run 5 (2026-11-24) passed on the RC revision `68cb528`. Two live
-gaps carry over from earlier releases and are documented, not blocking:
-Inspector CVE routing (W2) and alarm delivery (W8).
+and live run 5 (2026-11-24) passed on the RC revision `68cb528`. Live run 6
+(2026-11-24) covered Inspector CVE routing (W2) and alarm delivery (W8) on
+the 2.0.0 release `0740fab`.
 
 ## Versioning
 
@@ -51,13 +51,13 @@ machine wiring, not AWS authorization or service behavior.
 | # | Workflow | Mocked evidence | Live evidence |
 |---|---|---|---|
 | W1 | Batch normalization; malformed findings recorded as rejected | `test_normalize_batch.py`, `workflow_contract` | Run 4 (2026-10-10) |
-| W2 | Policy matching (type, generator, CVE, resource type, product, severity floor) | `test_policy.py`, `test_asff.py` | Runs 1-5 for type and generator, run 5 for `product`. CVE routing not live: it needs a real Inspector finding on a vulnerable instance, and it uses the same matcher |
+| W2 | Policy matching (type, generator, CVE, resource type, product, severity floor) | `test_policy.py`, `test_asff.py` | Runs 1-5 for type and generator, run 5 for `product`, run 6 for `vulnerability_id` and `resource_type` on a real Inspector finding (docs/proof/run-6.json) |
 | W3 | Guardrails: circuit breaker, rate limit, auto-trip, tag denylist, onboarding | `test_guardrails.py`, `test_check_guardrails.py` | Runs 2 and 5 |
 | W4 | Approval: read-only GET, IAM POST, immutable decision, retry, timeout as deny | `test_approval_callback.py`, `test_decide.py`, `workflow_contract` | Runs 4 and 5 |
 | W5 | **Approved actions recheck the breaker and tag** (new, S1) | 4 tests in `test_check_guardrails.py`; `workflow_contract` asserts the path and that only two states reach remediation | **Run 5**: blocked with the breaker set, executed with it clear |
 | W6 | Six playbooks remediate real resources, including org mode | `test_playbook_*.py` | Runs 2-3, and run 5 for service-specific credentials (a Bedrock API key went `Inactive`) |
 | W7 | Ledger, notifications, evidence export | `test_ledger.py`, `test_record_ledger.py` | Runs 2, 4 and 5 |
-| W8 | Independent workflow alarms | `workflow_contract` (3 alarms) | Not live (ARCHITECTURE.md says so) |
+| W8 | Independent workflow alarms | `workflow_contract` (3 alarms) | Run 6: `ExecutionsAborted` and `ExecutionsFailed` notifications received through the encrypted topic. `ExecutionsTimedOut` cannot fire (no execution timeout) |
 
 Run 5 (2026-11-24) deployed the RC (`68cb528`, 141 resources) to the org-mode
 hub and two member accounts in `us-east-1`, with no mocks, and then destroyed

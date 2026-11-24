@@ -104,9 +104,10 @@ operator to history instead of claiming success.
   session-name attribution and offboarding remain the operator's responsibility.
 - If a callback response is lost after AWS accepts it, history is the source
   of truth. Delivery retries do not guarantee an unambiguous HTTP success.
-- [Historical live proof](PROOF.md) predates the IAM POST and batch changes.
-  Unit tests and mocked Terraform tests do not prove live encrypted alarm
-  delivery, IAM authorization or cross-service availability.
+- Unit tests and mocked Terraform tests do not prove live encrypted alarm
+  delivery, IAM authorization or cross-service availability. Live runs 4 to 6
+  in [PROOF.md](PROOF.md) cover them for the IAM POST flow, batches and the
+  aborted and failed alarms.
 
 ## Other deployments
 
