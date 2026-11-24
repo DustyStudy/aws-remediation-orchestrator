@@ -1,0 +1,546 @@
+{
+  "run_id": "20261124T135421",
+  "date": "2026-11-24",
+  "revision": "68cb5287b903370acca0850d39fbb63aaf5dadd7",
+  "branch": "claude/project-thread-aloekb",
+  "deployed_resources": 141,
+  "region": "us-east-1",
+  "partition": "aws",
+  "accounts": {
+    "hub": "<hub>",
+    "member-a": "<member-a>",
+    "member-b": "<member-b>"
+  },
+  "setup": {
+    "approval_timeout_seconds": 600,
+    "evidence_bucket_force_destroy": true,
+    "policy_changes_from_example": {
+      "guardduty-compromised-credentials": "mode approval_required (example: auto)",
+      "gd-product-check": {
+        "match_field": "type_prefix",
+        "match_value": "TTPs/Policy:IAMUser-RootCredentialUsage",
+        "mode": "dry_run",
+        "product": "aws/guardduty"
+      }
+    },
+    "approver": "hub profile (OrganizationAccountAccessRole). Each Approve was signed and POSTed with scripts/decide.py's submit(), the function its CLI calls; its getpass prompt cannot be driven non-interactively here",
+    "test_user": "live-test-bedrock-key in member-a. User and access key from a service-managed StackSet in the management account, because an SCP denies iam:CreateUser/CreateAccessKey to other principals. Bedrock API key created directly with iam:CreateServiceSpecificCredential (bedrock.amazonaws.com, 1-day age). No secret was stored."
+  },
+  "results": {
+    "A_recheck_blocks_after_approval": {
+      "result": "pass",
+      "http_status": 200,
+      "ledger_outcome": [
+        [
+          "guardduty-role-credential-exfiltration",
+          "blocked",
+          "circuit_breaker_paused"
+        ]
+      ],
+      "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+      "execution": {
+        "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:c87c974e-7b8e-9f38-6c90-d25ef56cf087_f729e640-98d3-3549-2627-cd2fb4880a2b",
+        "status": "SUCCEEDED"
+      },
+      "automations_started_by_A": [],
+      "victim_role_inline_policies_after": []
+    },
+    "B_recheck_allows": {
+      "result": "pass",
+      "http_status": 200,
+      "ledger_outcome": [
+        [
+          "guardduty-role-credential-exfiltration",
+          "executed",
+          null
+        ]
+      ],
+      "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+      "execution": {
+        "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:32a72cc0-997b-71db-11e1-257ac0d45055_dbf63fec-9e4f-3386-16f9-250216106720",
+        "status": "SUCCEEDED"
+      },
+      "automation": [
+        {
+          "id": "0887aa62-5512-4969-9758-b5b3d0785e14",
+          "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-RevokeRoleSessions",
+          "status": "Success",
+          "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/<session>",
+          "started": "2026-11-24T07:57:00.053000-06:00"
+        }
+      ],
+      "victim_role_inline_policies_after": [
+        "AWSRevokeOlderSessions"
+      ]
+    },
+    "C_product_filter": {
+      "result": "pass",
+      "guardduty_sample": {
+        "product_arn": "arn:aws:securityhub:us-east-1::product/aws/guardduty",
+        "ledger_outcome": [
+          [
+            "gd-product-check",
+            "dry_run",
+            null
+          ]
+        ],
+        "execution": {
+          "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:d7146bbe-1443-6404-b8ea-01c69cab3fc8_53623e80-eb02-1587-e4aa-ff0bdff2bb3a",
+          "status": "SUCCEEDED"
+        }
+      },
+      "imported_copy_default_product": {
+        "product_arn": "arn:aws:securityhub:us-east-1:<hub>:product/<hub>/default",
+        "ledger_outcome": [
+          [
+            "default",
+            "dry_run",
+            null
+          ]
+        ],
+        "execution": {
+          "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:5d822782-1274-ca9c-69c8-26f65338aa9a_bd0df932-3838-07b0-13c1-26be9b777f37",
+          "status": "SUCCEEDED"
+        }
+      },
+      "import_with_guardduty_product_arn": "rejected by Security Hub: AccessDeniedException, no resource-based policy allows securityhub:BatchImportFindings on product/aws/guardduty"
+    },
+    "D_bedrock_api_key_deactivation": {
+      "result": "pass",
+      "service": "bedrock.amazonaws.com",
+      "http_status": 200,
+      "ledger_outcome": [
+        [
+          "guardduty-compromised-credentials",
+          "executed",
+          null
+        ]
+      ],
+      "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+      "execution": {
+        "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:e25dd281-7b19-1fad-27d6-02f6352f2f18_15b00949-19f1-8517-9aa3-b88a34c9c187",
+        "status": "SUCCEEDED"
+      },
+      "automation": [
+        {
+          "id": "e11362a6-8486-4bb7-be9a-b8e28fad946f",
+          "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-DisableCompromisedCredentials",
+          "status": "Success",
+          "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/<session>",
+          "started": "2026-11-24T08:21:57.787000-06:00"
+        }
+      ],
+      "before": {
+        "access_keys": [
+          "Active"
+        ],
+        "service_specific_credentials": [
+          {
+            "service": "bedrock.amazonaws.com",
+            "status": "Active"
+          }
+        ],
+        "tags": []
+      },
+      "after": {
+        "access_keys": [
+          "Inactive"
+        ],
+        "service_specific_credentials": [
+          {
+            "service": "bedrock.amazonaws.com",
+            "status": "Inactive"
+          }
+        ],
+        "tags": [
+          "CompromisedCredentials",
+          "RemediationFindingId"
+        ]
+      }
+    }
+  },
+  "checks": {
+    "recheck-blocked": {
+      "started": "2026-11-24T13:54:45.063447+00:00",
+      "role_before": {
+        "inline_policies": [],
+        "revoke_policy": null
+      },
+      "approval_requested_at": "2026-11-24T13:54:55.903Z",
+      "decision": {
+        "requested_at": "2026-11-24T13:54:55.903Z",
+        "submitted_at": "2026-11-24T13:55:32.443237+00:00",
+        "http_status": 200,
+        "response": "Decision delivered: approve."
+      },
+      "ledger": [
+        {
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+          "execution_status": "",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "approval_required",
+          "finding_id": "live-test/20261124T135421/recheck-blocked",
+          "resource_type": "AwsIamAccessKey",
+          "action_document": "remediation-orchestrator-RevokeRoleSessions",
+          "account_id": "<member-a>",
+          "policy_id": "guardduty-role-credential-exfiltration",
+          "resource_arn": "AWS::IAM::AccessKey:ASIALIVETESTEXAMPLE",
+          "severity_label": "HIGH",
+          "execution_id": "",
+          "guardrail_allowed": false,
+          "guardrail_reason": "circuit_breaker_paused",
+          "region": "us-east-1",
+          "outcome": "blocked",
+          "nist_controls": [
+            "AC-2",
+            "IR-4",
+            "IA-5"
+          ],
+          "title": "Live test: role credentials used from outside AWS (recheck-blocked)",
+          "execution_ts": "2026-11-24T13:55:30.099Z"
+        }
+      ],
+      "execution": {
+        "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:c87c974e-7b8e-9f38-6c90-d25ef56cf087_f729e640-98d3-3549-2627-cd2fb4880a2b",
+        "status": "SUCCEEDED"
+      },
+      "role_after": {
+        "inline_policies": [],
+        "revoke_policy": null
+      },
+      "automations": [
+        {
+          "id": "0887aa62-5512-4969-9758-b5b3d0785e14",
+          "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-RevokeRoleSessions",
+          "status": "Success",
+          "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/<session>",
+          "started": "2026-11-24T07:57:00.053000-06:00"
+        }
+      ],
+      "ledger_execution_ids": [
+        ""
+      ]
+    },
+    "recheck-allowed": {
+      "started": "2026-11-24T13:56:15.973394+00:00",
+      "role_before": {
+        "inline_policies": [],
+        "revoke_policy": null
+      },
+      "approval_requested_at": "2026-11-24T13:56:25.123Z",
+      "decision": {
+        "requested_at": "2026-11-24T13:56:25.123Z",
+        "submitted_at": "2026-11-24T13:57:00.783595+00:00",
+        "http_status": 200,
+        "response": "Decision delivered: approve."
+      },
+      "ledger": [
+        {
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+          "execution_status": "Success",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "approval_required",
+          "finding_id": "live-test/20261124T135421/recheck-allowed",
+          "resource_type": "AwsIamAccessKey",
+          "action_document": "remediation-orchestrator-RevokeRoleSessions",
+          "account_id": "<member-a>",
+          "policy_id": "guardduty-role-credential-exfiltration",
+          "resource_arn": "AWS::IAM::AccessKey:ASIALIVETESTEXAMPLE",
+          "severity_label": "HIGH",
+          "execution_id": "0887aa62-5512-4969-9758-b5b3d0785e14",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "executed",
+          "nist_controls": [
+            "AC-2",
+            "IR-4",
+            "IA-5"
+          ],
+          "title": "Live test: role credentials used from outside AWS (recheck-allowed)",
+          "execution_ts": "2026-11-24T13:57:06.297Z"
+        }
+      ],
+      "execution": {
+        "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:32a72cc0-997b-71db-11e1-257ac0d45055_dbf63fec-9e4f-3386-16f9-250216106720",
+        "status": "SUCCEEDED"
+      },
+      "role_after": {
+        "inline_policies": [
+          "AWSRevokeOlderSessions"
+        ],
+        "revoke_policy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Action": [
+                "*"
+              ],
+              "Resource": [
+                "*"
+              ],
+              "Condition": {
+                "DateLessThan": {
+                  "aws:TokenIssueTime": "2026-11-24T13:57:02Z"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "automations": [
+        {
+          "id": "0887aa62-5512-4969-9758-b5b3d0785e14",
+          "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-RevokeRoleSessions",
+          "status": "Success",
+          "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/<session>",
+          "started": "2026-11-24T07:57:00.053000-06:00"
+        }
+      ],
+      "ledger_execution_ids": [
+        "0887aa62-5512-4969-9758-b5b3d0785e14"
+      ]
+    },
+    "product-filter": {
+      "sample_requested_at": "2026-11-24T13:58:31.397894+00:00",
+      "guardduty": {
+        "id": "arn:aws:guardduty:us-east-1:<hub>:detector/bfe2f932f18b485cb7de042bae5cb517/finding/388a360b3fc04db692a102793dc75a16",
+        "product_arn": "arn:aws:securityhub:us-east-1::product/aws/guardduty",
+        "types": [
+          "TTPs/Policy:IAMUser-RootCredentialUsage"
+        ],
+        "generator_id": "arn:aws:guardduty:us-east-1:<hub>:detector/bfe2f932f18b485cb7de042bae5cb517",
+        "ledger": [
+          {
+            "decided_by": "system",
+            "execution_status": "",
+            "generator_id": "arn:aws:guardduty:us-east-1:<hub>:detector/bfe2f932f18b485cb7de042bae5cb517",
+            "mode": "dry_run",
+            "finding_id": "arn:aws:guardduty:us-east-1:<hub>:detector/bfe2f932f18b485cb7de042bae5cb517/finding/388a360b3fc04db692a102793dc75a16",
+            "resource_type": "AwsEc2Instance",
+            "action_document": "",
+            "account_id": "<hub>",
+            "policy_id": "gd-product-check",
+            "resource_arn": "arn:aws:ec2:us-east-1:<hub>:instance/i-99999999",
+            "severity_label": "LOW",
+            "execution_id": "",
+            "guardrail_allowed": true,
+            "guardrail_reason": null,
+            "region": "us-east-1",
+            "outcome": "dry_run",
+            "nist_controls": [],
+            "title": "The API GeneratedFindingAPIName was invoked using root credentials.",
+            "execution_ts": "2026-11-24T13:58:40.683Z"
+          }
+        ],
+        "execution": {
+          "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:d7146bbe-1443-6404-b8ea-01c69cab3fc8_53623e80-eb02-1587-e4aa-ff0bdff2bb3a",
+          "status": "SUCCEEDED"
+        }
+      },
+      "imported_copy": {
+        "id": "live-test/20261124T135421/gd-copy",
+        "product_arn": "arn:aws:securityhub:us-east-1:<hub>:product/<hub>/default",
+        "types": [
+          "TTPs/Policy:IAMUser-RootCredentialUsage"
+        ],
+        "import_response": {
+          "SuccessCount": 1,
+          "FailedCount": 0,
+          "FailedFindings": []
+        },
+        "ledger": [
+          {
+            "decided_by": "system",
+            "execution_status": "",
+            "generator_id": "arn:aws:guardduty:us-east-1:<hub>:detector/bfe2f932f18b485cb7de042bae5cb517",
+            "mode": "dry_run",
+            "finding_id": "live-test/20261124T135421/gd-copy",
+            "resource_type": "AwsEc2Instance",
+            "action_document": "",
+            "account_id": "<hub>",
+            "policy_id": "default",
+            "resource_arn": "arn:aws:ec2:us-east-1:<hub>:instance/i-99999999",
+            "severity_label": "LOW",
+            "execution_id": "",
+            "guardrail_allowed": true,
+            "guardrail_reason": null,
+            "region": "us-east-1",
+            "outcome": "dry_run",
+            "nist_controls": [],
+            "title": "The API GeneratedFindingAPIName was invoked using root credentials.",
+            "execution_ts": "2026-11-24T14:19:44.808Z"
+          }
+        ],
+        "execution": {
+          "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:5d822782-1274-ca9c-69c8-26f65338aa9a_bd0df932-3838-07b0-13c1-26be9b777f37",
+          "status": "SUCCEEDED"
+        }
+      },
+      "spoofed_product_import": {
+        "error": "AccessDeniedException: An error occurred (AccessDeniedException) when calling the BatchImportFindings operation: User: arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>"
+      }
+    },
+    "bedrock-key": {
+      "service_credential_service": "bedrock.amazonaws.com",
+      "bedrock_create_error": null,
+      "before": {
+        "access_keys": [
+          "Active"
+        ],
+        "service_specific_credentials": [
+          {
+            "service": "bedrock.amazonaws.com",
+            "status": "Active"
+          }
+        ],
+        "tags": []
+      },
+      "started": "2026-11-24T14:21:38.218875+00:00",
+      "decision": {
+        "requested_at": "2026-11-24T14:21:51.757Z",
+        "submitted_at": "2026-11-24T14:21:58.681811+00:00",
+        "http_status": 200,
+        "response": "Decision delivered: approve."
+      },
+      "ledger": [
+        {
+          "decided_by": "arn:aws:sts::<hub>:assumed-role/OrganizationAccountAccessRole/<session>",
+          "execution_status": "Success",
+          "generator_id": "live-test/guardduty-shaped",
+          "mode": "approval_required",
+          "finding_id": "live-test/20261124T135421/bedrock-key",
+          "resource_type": "AwsIamAccessKey",
+          "account_id": "<member-a>",
+          "action_document": "remediation-orchestrator-DisableCompromisedCredentials",
+          "policy_id": "guardduty-compromised-credentials",
+          "resource_arn": "AWS::IAM::AccessKey:AKIALIVETESTEXAMPLE",
+          "severity_label": "HIGH",
+          "execution_id": "e11362a6-8486-4bb7-be9a-b8e28fad946f",
+          "guardrail_allowed": true,
+          "guardrail_reason": null,
+          "region": "us-east-1",
+          "outcome": "executed",
+          "nist_controls": [
+            "AC-2",
+            "IR-4"
+          ],
+          "title": "API was invoked from a known malicious IP address (bedrock-key)",
+          "execution_ts": "2026-11-24T14:22:04.019Z"
+        }
+      ],
+      "execution": {
+        "arn": "arn:aws:states:us-east-1:<hub>:execution:remediation-orchestrator:e25dd281-7b19-1fad-27d6-02f6352f2f18_15b00949-19f1-8517-9aa3-b88a34c9c187",
+        "status": "SUCCEEDED"
+      },
+      "after": {
+        "access_keys": [
+          "Inactive"
+        ],
+        "service_specific_credentials": [
+          {
+            "service": "bedrock.amazonaws.com",
+            "status": "Inactive"
+          }
+        ],
+        "tags": [
+          "CompromisedCredentials",
+          "RemediationFindingId"
+        ]
+      },
+      "automations": [
+        {
+          "id": "e11362a6-8486-4bb7-be9a-b8e28fad946f",
+          "document": "arn:aws:ssm:us-east-1:<hub>:document/remediation-orchestrator-DisableCompromisedCredentials",
+          "status": "Success",
+          "executed_by": "arn:aws:sts::<member-a>:assumed-role/remediation-orchestrator-member-execution-role/<session>",
+          "started": "2026-11-24T08:21:57.787000-06:00"
+        }
+      ]
+    }
+  },
+  "circuit_breaker_log": [
+    {
+      "at": "2026-11-24T13:54:59.602457+00:00",
+      "set_to": "true"
+    },
+    {
+      "at": "2026-11-24T13:55:36.054772+00:00",
+      "set_to": "false"
+    }
+  ],
+  "evidence_export": {
+    "invocation": {
+      "documents_written": [
+        "remediation-orchestrator/2026-11-24/<member-a>-us-east-1.json",
+        "remediation-orchestrator/2026-11-24/<hub>-us-east-1.json"
+      ],
+      "ledger_items_processed": 5
+    },
+    "documents": {
+      "remediation-orchestrator/2026-11-24/<hub>-us-east-1.json": {
+        "account": "<hub>",
+        "status": "pass",
+        "summary": "2 finding(s) evaluated between 2026-11-23T14:23:14.629090+00:00 and 2026-11-24T14:23:14.629090+00:00; 0 remediated, 2 dry-run, 0 blocked by guardrail, 0 denied, 0 failed",
+        "controls": {
+          "nist_800_53": []
+        },
+        "data": {
+          "findings_evaluated": 2,
+          "remediated": 0,
+          "dry_run": 2,
+          "blocked_by_guardrail": 0,
+          "denied": 0,
+          "failed": 0,
+          "period_start": "2026-11-23T14:23:14.629090+00:00",
+          "period_end": "2026-11-24T14:23:14.629090+00:00"
+        },
+        "sha256": "510f5e684f36b499b3dd223cd26fb031791346054a5d955b893d1a9f9718f481"
+      },
+      "remediation-orchestrator/2026-11-24/<member-a>-us-east-1.json": {
+        "account": "<member-a>",
+        "status": "pass",
+        "summary": "3 finding(s) evaluated between 2026-11-23T14:23:14.629090+00:00 and 2026-11-24T14:23:14.629090+00:00; 2 remediated, 0 dry-run, 1 blocked by guardrail, 0 denied, 0 failed",
+        "controls": {
+          "nist_800_53": [
+            "AC-2",
+            "IA-5",
+            "IR-4"
+          ]
+        },
+        "data": {
+          "findings_evaluated": 3,
+          "remediated": 2,
+          "dry_run": 0,
+          "blocked_by_guardrail": 1,
+          "denied": 0,
+          "failed": 0,
+          "period_start": "2026-11-23T14:23:14.629090+00:00",
+          "period_end": "2026-11-24T14:23:14.629090+00:00"
+        },
+        "sha256": "97414319fc29138bfd6e2d37b5441f1b1a69f6c0991611b1f80b02d98069947b"
+      }
+    }
+  },
+  "teardown": {
+    "terraform_destroy": "141 destroyed",
+    "script_cleanup": "victim role, test user, access key, Bedrock API key, StackSet, SQS queue and SNS subscription deleted; imported findings and the GuardDuty sample resolved in Security Hub; GuardDuty sample archived; circuit breaker reset to false before destroy",
+    "verified_absent_in_each_account_us_east_1": [
+      "resourcegroupstaggingapi by Application tag and name prefix",
+      "Step Functions state machine",
+      "S3 evidence bucket",
+      "CloudWatch log groups",
+      "Lambda functions",
+      "DynamoDB tables",
+      "SSM documents and parameters",
+      "KMS aliases",
+      "IAM roles and users",
+      "SQS queue",
+      "management-account StackSet"
+    ],
+    "left_behind": [
+      "hub: the approval signing secret, scheduled for deletion by terraform destroy. It stays in the Secrets Manager recovery window and in the tagging API until that ends"
+    ]
+  }
+}
