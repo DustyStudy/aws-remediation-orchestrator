@@ -57,6 +57,8 @@ limit, or other unhandled workflow error can prevent ledger coverage and stop
 unfinished Map iterations. CloudWatch alarms on failed, timed-out and aborted
 executions publish independently of the ledger Lambda. This is a recovery
 signal, not a guarantee that every event always reaches the ledger.
+An execution still running after `execution_timeout_seconds` (default: the
+approval timeout plus two hours) is stopped, which raises the timed-out alarm.
 See [operations and upgrades](OPERATIONS.md).
 
 ## Approval boundary

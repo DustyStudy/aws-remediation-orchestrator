@@ -6,6 +6,14 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The `ExecutionsTimedOut` alarm can fire. The state machine had no overall
+  time limit, so no execution could ever time out. Executions now stop after
+  `execution_timeout_seconds` (new variable; default
+  `approval_timeout_seconds` plus two hours), which covers one approval wait
+  and every step's throttling retries. A stuck execution now surfaces as an
+  alarm instead of running until Step Functions' one-year limit.
+
 ## [2.0.1] - 2026-11-24
 
 ### Fixed
