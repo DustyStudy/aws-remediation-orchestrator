@@ -2,13 +2,19 @@
 
 > Runs 1 to 3 predate the IAM-authenticated POST approval flow and batch Map
 > processing; the email clicks they describe refer to that older version.
-> Runs 4 and 5 cover the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
+> Runs 4 to 6 cover the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
 > submissions and upgrades.
 
-Five live runs against real AWS accounts, each checked against AWS's own
+Six live runs against real AWS accounts, each checked against AWS's own
 records (Step Functions history, DynamoDB, SSM Automation, CloudTrail)
 rather than only the tool's output. Account IDs are masked.
 
+- [Run 6 (2026-11-24)](#run-6-2026-11-24-inspector-cve-routing-and-failure-alarms):
+  the released 2.0.0. A real Amazon Inspector CVE finding matched a CVE
+  rule and, once approved, isolated the instance. The aborted and failed
+  execution alarms reached a queue through the encrypted topic. **Found
+  that a burst of Inspector findings overwhelms a low Lambda concurrency
+  limit.**
 - [Run 5 (2026-11-24)](#run-5-2026-11-24-guardrail-recheck-product-filter-and-bedrock-api-keys):
   the release candidate. A circuit breaker set while an approval waited
   stopped the approved playbook, a self-imported copy of a GuardDuty
@@ -29,6 +35,52 @@ rather than only the tool's output. Account IDs are masked.
 - [Run 1 (2026-09-22)](#run-1-2026-09-22-single-account-pipeline-and-approval):
   one account. The finding pipeline, the policy fallback and the
   approval gate with a real email click.
+
+## Run 6 (2026-11-24): Inspector CVE routing and failure alarms
+
+The same `examples/org-mode` hub and two member accounts, in `us-east-1`, at
+the 2.0.0 release `0740fab` (141 resources). Everything was destroyed
+afterwards. All evidence is in [`proof/run-6.json`](proof/run-6.json).
+
+### What was tested
+
+| | |
+|---|---|
+| **Policies** | The example seed, plus `inspector-run6-cve`: `vulnerability_id` `CVE-2023-0179`, `product = "aws/inspector"`, `resource_type = "AwsEc2Instance"`, `approval_required`, `IsolateCompromisedInstance` |
+| **Instance** | A t3.micro in member-a from a January 2023 Amazon Linux 2 AMI, managed by SSM, with no inbound rules. Inspector (EC2 only) was enabled for the run and disabled afterwards |
+| **Findings** | Inspector's own findings on that instance. The CVE rule was added after they arrived, so the hub re-sent the real finding with `BatchUpdateFindings` (workflow `NOTIFIED`), which Security Hub emits as an imported-findings event |
+| **Alarms** | An SQS queue subscribed to the KMS-encrypted notifications topic. One approval-required execution stopped while it waited; one execution failed by a temporary deny of `lambda:InvokeFunction` on `normalize_finding` |
+
+### Claims and evidence
+
+| # | Claim | Result | Evidence |
+|---|---|---|---|
+| 1 | A CVE rule matches a real Inspector finding on an EC2 instance | **Proven** | Ledger `inspector-run6-cve`, `approval_required`. The approval request names `Source: …product/aws/inspector` and the CVE |
+| 2 | An approved CVE rule isolates the instance | **Proven** | Approve returned HTTP 200 and the ledger is `executed`. `IsolateCompromisedInstance` succeeded in member-a, run by the member execution role. The instance's interface is on the isolation group (no inbound or outbound rules) and its volume was snapshotted |
+| 3 | `ExecutionsAborted` notifies | **Proven** | The alarm went to ALARM 2 minutes after `StopExecution` and its notification arrived in the queue |
+| 4 | `ExecutionsFailed` notifies | **Proven** | It fired twice: once in the Inspector flood below, and again 1 minute after the controlled failure. Both notifications arrived in the queue |
+| 5 | `ExecutionsTimedOut` notifies | Not tested | The state machine sets no execution timeout, so it cannot fire |
+
+### What running it for real found
+
+- **A burst of Inspector findings overwhelmed the pipeline.** Inspector
+  reported about 3,000 CVEs on the one old instance within minutes, and
+  each started an execution. The hub account's Lambda concurrency limit is
+  10, so 1,702 executions failed with `Lambda.TooManyRequestsException`
+  after the state machine's three retries. Most of the rest were blocked by
+  the default policy's rate limit, which tripped the circuit breaker. The
+  alarm and the breaker did their jobs, but those findings were not
+  evaluated. Accounts at the default limit of 1,000 have far more headroom.
+  Longer retries and a cap on concurrent executions are not in this release.
+- **The approval request always says it expires in 24 hours.** The text is
+  hard-coded in `request_approval`, while this run's
+  `approval_timeout_seconds` was 600.
+
+### What it left behind
+
+The approval signing secret is in its Secrets Manager recovery window, as
+after run 5. No other resource with the run's names or tags is left in the
+three accounts.
 
 ## Run 5 (2026-11-24): guardrail recheck, product filter and Bedrock API keys
 
