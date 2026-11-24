@@ -164,3 +164,19 @@ def test_normalize_rejects_a_malformed_vulnerabilities_list():
 def test_normalize_gives_inspector_instance_arns_the_canonical_form(resource_id, expected):
     finding = {**BASE_FINDING, "Resources": [{"Id": resource_id, "Type": "AwsEc2Instance"}]}
     assert asff.normalize(finding)["resource_arn"] == expected
+
+
+def test_normalize_keeps_the_product_arn_for_approvers():
+    assert asff.normalize(BASE_FINDING)["product_arn"] == BASE_FINDING["ProductArn"]
+
+
+@pytest.mark.parametrize(
+    ("product_arn", "product"),
+    [
+        ("arn:aws:securityhub:us-east-1::product/aws/guardduty", "aws/guardduty"),
+        ("arn:aws-us-gov:securityhub:us-gov-west-1::product/aws/inspector", "aws/inspector"),
+        ("arn:aws:securityhub:us-east-1:111111111111:product/111111111111/default", "111111111111/default"),
+    ],
+)
+def test_normalize_names_the_importing_product(product_arn, product):
+    assert asff.normalize({**BASE_FINDING, "ProductArn": product_arn})["product"] == product

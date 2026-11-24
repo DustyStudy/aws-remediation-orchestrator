@@ -10,7 +10,9 @@ flowchart TD
   D -->|approval_required| A[Signed review link]
   A --> I[IAM-authenticated POST]
   I --> C{Decision}
-  C -->|approve| X[SSM remediation]
+  C -->|approve| R{Recheck breaker and tag}
+  R -->|allowed| X[SSM remediation]
+  R -->|blocked| L
   C -->|deny or timeout| L[Decision ledger]
   D -->|auto| X
   D -->|dry_run or ignore| L
@@ -58,6 +60,17 @@ The callback records the IAM session ARN supplied by API Gateway. It does not
 accept an actor from a query parameter. The first decision and actor are
 immutable. The same actor may retry that decision after a transient delivery
 failure, but an opposing decision or different actor cannot replace it.
+
+An approval does not bypass the guardrails. Before an approved playbook runs,
+the circuit breaker and `do-not-remediate` tag are checked again, because
+either can change while a request waits. The recheck does not count the
+finding against the rate limit a second time. A blocked recheck is recorded
+as `blocked` with the approver as `decided_by`, and any recheck error is
+recorded as `failed`; neither runs the playbook.
+
+The email names the finding's `ProductArn` and `GeneratorId`. Anyone allowed
+`securityhub:BatchImportFindings` can import a finding shaped like GuardDuty's,
+so approvers should confirm the source before they approve.
 
 Only an acknowledged Step Functions callback is marked consumed. Both approval
 and denial return structured results to the waiting state, which branches on

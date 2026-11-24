@@ -50,6 +50,8 @@ def normalize(finding: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "finding_id": finding_id,
+        "product_arn": product_arn,
+        "product": _product(product_arn),
         "title": title,
         "types": types,
         "type_prefix": types[0] if types else "",
@@ -159,6 +161,18 @@ def _vulnerability_id(vulnerabilities: list[dict[str, Any]]) -> str:
         if isinstance(vulnerability.get("Id"), str):
             return vulnerability["Id"]
     return ""
+
+
+def _product(product_arn: str) -> str:
+    """``<company>/<product>`` from a ProductArn, such as ``aws/guardduty``.
+
+    Security Hub sets this from the integration that imported the finding:
+    a caller of BatchImportFindings gets ``<account>/default`` and cannot
+    claim ``aws/guardduty``. Region and partition are dropped so one policy
+    works in every region.
+    """
+    _, sep, product = product_arn.partition(":product/")
+    return product if sep else ""
 
 
 def _region_from_arn(arn: str) -> str:

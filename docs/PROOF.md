@@ -2,13 +2,18 @@
 
 > Runs 1 to 3 predate the IAM-authenticated POST approval flow and batch Map
 > processing; the email clicks they describe refer to that older version.
-> Run 4 covers the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
+> Runs 4 and 5 cover the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
 > submissions and upgrades.
 
-Four live runs against real AWS accounts, each checked against AWS's own
+Five live runs against real AWS accounts, each checked against AWS's own
 records (Step Functions history, DynamoDB, SSM Automation, CloudTrail)
 rather than only the tool's output. Account IDs are masked.
 
+- [Run 5 (2026-11-24)](#run-5-2026-11-24-guardrail-recheck-product-filter-and-bedrock-api-keys):
+  the release candidate. A circuit breaker set while an approval waited
+  stopped the approved playbook, a self-imported copy of a GuardDuty
+  finding no longer matched a GuardDuty-only rule, and a Bedrock API key was
+  deactivated.
 - [Run 4 (2026-10-10)](#run-4-2026-10-10-iam-authenticated-approval-delivery-recovery-and-a-batch):
   the IAM-authenticated approval flow. A decision whose delivery failed was
   retried and delivered once, the opposite decision was refused meanwhile,
@@ -24,6 +29,38 @@ rather than only the tool's output. Account IDs are masked.
 - [Run 1 (2026-09-22)](#run-1-2026-09-22-single-account-pipeline-and-approval):
   one account. The finding pipeline, the policy fallback and the
   approval gate with a real email click.
+
+## Run 5 (2026-11-24): guardrail recheck, product filter and Bedrock API keys
+
+The same `examples/org-mode` hub and two member accounts as runs 2 to 4, in
+`us-east-1`, at revision `68cb528` (141 resources). Everything was destroyed
+afterwards. All evidence is in [`proof/run-5.json`](proof/run-5.json).
+
+### What was tested
+
+| | |
+|---|---|
+| **Policies** | The example seed, plus `gd-product-check` (dry run, `product = "aws/guardduty"`, matching `TTPs/Policy:IAMUser-RootCredentialUsage`). `guardduty-compromised-credentials` was set to `approval_required` |
+| **Findings** | GuardDuty-shaped findings imported with `BatchImportFindings` in member-a, and one real GuardDuty sample finding in the hub |
+| **Approver** | The hub profile's administrator role, submitting with `scripts/decide.py`'s `submit` function |
+| **Test user** | `live-test-bedrock-key` in member-a, with an access key from a StackSet in the management account (an SCP blocks direct creation) and a Bedrock API key created directly |
+
+### Claims and evidence
+
+| # | Claim | Result | Evidence |
+|---|---|---|---|
+| 1 | A circuit breaker set while an approval waits stops the approved playbook | **Proven** | Approve returned HTTP 200. The ledger entry is `blocked` with `circuit_breaker_paused` and the approver's session ARN as `decided_by`. No automation ran and the role had no inline policy |
+| 2 | With the breaker clear, an approved playbook runs after the recheck | **Proven** | Ledger `executed`. `RevokeRoleSessions` succeeded in member-a, started by the member execution role, and the role carries `AWSRevokeOlderSessions` |
+| 3 | A rule with `product` matches the real detector's finding | **Proven** | The GuardDuty sample (`product/aws/guardduty`) matched `gd-product-check` |
+| 4 | A self-imported copy cannot match that rule | **Proven** | The same `Types` under the hub's `product/<hub>/default` matched `default`. Importing under `product/aws/guardduty` was refused with `AccessDeniedException` |
+| 5 | `DisableCompromisedCredentials` deactivates Bedrock API keys | **Proven** | After approval, the access key and the `bedrock.amazonaws.com` credential went from `Active` to `Inactive`, and the user was tagged |
+| 6 | The evidence export covers these outcomes | **Proven** | Two documents: hub (2 dry runs), member-a (2 remediated, 1 blocked) |
+
+### What it left behind
+
+The approval signing secret stays in its Secrets Manager recovery window
+after `terraform destroy`. A redeploy with the same name prefix inside that
+window fails, as run 3 found (see below).
 
 ## Run 4 (2026-10-10): IAM-authenticated approval, delivery recovery and a batch
 

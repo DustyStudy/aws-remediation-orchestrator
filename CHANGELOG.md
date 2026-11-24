@@ -6,6 +6,8 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-24
+
 ### Fixed
 - Normalize every finding in a batch and retain auditable rejected records.
 - Record policy, guardrail and approval-request failures; retry ledger writes
@@ -14,6 +16,23 @@ follow [Semantic Versioning](https://semver.org/).
   decision after transient callback errors without reopening opposing choices.
 
 ### Security
+- An approved remediation now re-checks the circuit breaker and the
+  `do-not-remediate` tag before it runs. Before, a breaker set or a tag
+  added while the approval waited (up to `approval_timeout_seconds`) did
+  not stop the action once someone approved it. The recheck does not count
+  against the rate limit again. A blocked approval is recorded as `blocked`
+  with the approver as `decided_by`; a recheck error is recorded as `failed`.
+- `approval_timeout_seconds` is validated to 60-86400 seconds. A longer
+  wait outlived the 24-hour approval link and could only end in a timeout.
+- Policy items take an optional `product` (`aws/guardduty`,
+  `aws/inspector`, `aws/securityhub`) that must match the product in the
+  finding's `ProductArn`. A finding imported with `BatchImportFindings` gets
+  `<account>/default`, so it can no longer match a rule meant for GuardDuty.
+  `terraform.tfvars.example` sets it on every acting rule. Existing items
+  without it match as before.
+- Approval emails name the finding's `ProductArn` and `GeneratorId`, so an
+  approver can tell a finding imported with `BatchImportFindings` from one
+  GuardDuty or Inspector raised.
 - Document adding port 3000 to `open_ingress_revoke_ports` where Flowise
   runs, after attackers exploited internet-facing Flowise servers
   (CVE-2025-59528, CVE-2026-41264; The Hacker News, 2026). The default
@@ -42,6 +61,9 @@ follow [Semantic Versioning](https://semver.org/).
 ### Maintenance
 - Share eight identical Lambda trust policies without moving resources.
 - Add Python regressions and mocked Terraform workflow tests.
+- Live run 5: the guardrail recheck after approval, the `product` filter
+  and Bedrock API key deactivation, on the release candidate
+  (`docs/proof/run-5.json`).
 - Live run of the approval flow, delivery recovery and a batch
   (`docs/CASE-STUDY.md`, run 4 in `docs/PROOF.md`).
 - `live_test_playbooks.py deny` submits an IAM-signed POST.
@@ -185,7 +207,8 @@ Found during the real-account run in `docs/PROOF.md`:
 - The KMS key policy did not allow the Step Functions and API Gateway log
   groups, so their creation failed.
 
-[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/releases/tag/v1.0.0

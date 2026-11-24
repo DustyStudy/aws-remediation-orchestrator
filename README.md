@@ -40,7 +40,7 @@ flowchart TB
     G -- pass --> M{"Policy mode"}
     M -- approval_required --> A["Review link + IAM POST<br/>waitForTaskToken"]
     M -- auto --> X["Run SSM Automation playbook"]
-    A -- approved --> X
+    A -- "approved, guardrails rechecked" --> X
   end
   G -- blocked --> LEDGER
   M -- "ignore / dry_run" --> LEDGER
@@ -75,7 +75,7 @@ to a playbook owned by another deployment via
 
 | Piece | What it does |
 |---|---|
-| **Policy registry** (DynamoDB) | Matches a finding's ASFF type, generator or CVE (and optionally its resource type) against rules that set mode, target playbook, NIST 800-53 mapping, and rate limit. See [`docs/POLICY_REGISTRY.md`](docs/POLICY_REGISTRY.md). |
+| **Policy registry** (DynamoDB) | Matches a finding's ASFF type, generator or CVE (and optionally its resource type and the product that raised it) against rules that set mode, target playbook, NIST 800-53 mapping, and rate limit. See [`docs/POLICY_REGISTRY.md`](docs/POLICY_REGISTRY.md). |
 | **Guardrails** | Org-wide circuit breaker (one SSM parameter), per-policy hourly rate limit with auto-trip on a detector storm, and a generic `do-not-remediate` resource tag denylist (Resource Groups Tagging API - works across resource types with no per-service code). |
 | **Approval flow** | `approval_required` policies pause the state machine (`waitForTaskToken`) and email signed review links; decisions require an IAM-authenticated POST; a timeout with no response is treated as a deny. |
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
@@ -180,7 +180,7 @@ the call is made:
 | How DynamoDB parses an expression | `consumed` is a reserved word, so the approval callback's update raised `ValidationException` instead of the conditional-check error the handler caught | `ExpressionAttributeNames` in both expressions |
 | Account quotas | A new account's Lambda concurrency limit can be 10, below the reserved concurrency the functions asked for | `enable_lambda_reserved_concurrency` |
 
-Four runs so far. The first, in one account, carried a real finding through a
+Five runs so far. The first, in one account, carried a real finding through a
 real human deny click. The second ran org mode across four accounts:
 playbooks remediated real buckets, a security group and a role in three
 accounts, and the rate limit, circuit breaker, tag denylist and evidence
@@ -190,6 +190,11 @@ and recorded a denied and a timed-out approval. The fourth ran the
 IAM-authenticated approval flow, recovered a failed delivery and processed a
 three-finding batch. [`docs/PROOF.md`](docs/PROOF.md) has the evidence for each
 claim and what the runs did not cover.
+
+Run 5 (2026-11-24) tested the release candidate, `68cb528`. A circuit
+breaker set while an approval waited stopped the approved playbook. A
+self-imported copy of a GuardDuty finding no longer matched a GuardDuty-only
+rule. A Bedrock API key was deactivated.
 
 ## Repository layout
 

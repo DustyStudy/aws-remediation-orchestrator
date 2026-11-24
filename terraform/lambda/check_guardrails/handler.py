@@ -13,6 +13,12 @@ detector is storming rather than a policy just needing a higher limit.
 In org mode (see docs/ORG_MODE.md) the denylist tag is read in the account
 that owns the resource, and a finding from an account the orchestrator
 has no roles in is blocked as account_not_onboarded.
+
+With ``recheck`` set, the state machine is asking again after a human
+approved: an approval can wait up to the approval timeout, and a circuit
+breaker or do-not-remediate tag set meanwhile must still stop the action.
+The rate limit was already counted for this finding, so a recheck neither
+counts it again nor trips the breaker.
 """
 from __future__ import annotations
 
@@ -51,12 +57,15 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     breaker = guardrails.check_circuit_breaker(_ssm, PAUSE_PARAMETER_NAME)
 
-    max_per_hour = int(matched_policy.get("max_actions_per_hour", 10))
-    rate = guardrails.check_rate_limit(
-        _dynamodb, RATE_LIMIT_TABLE_NAME, matched_policy["match_id"], max_per_hour
-    )
-    if not rate.allowed and rate.reason == "rate_limit_exceeded":
-        _maybe_trip_breaker(matched_policy["match_id"], max_per_hour)
+    if event.get("recheck") is True:
+        rate = guardrails.GuardrailResult(allowed=True, reason="counted_before_approval")
+    else:
+        max_per_hour = int(matched_policy.get("max_actions_per_hour", 10))
+        rate = guardrails.check_rate_limit(
+            _dynamodb, RATE_LIMIT_TABLE_NAME, matched_policy["match_id"], max_per_hour
+        )
+        if not rate.allowed and rate.reason == "rate_limit_exceeded":
+            _maybe_trip_breaker(matched_policy["match_id"], max_per_hour)
 
     tagging = _tagging
     member = crossaccount.member_client_kwargs(

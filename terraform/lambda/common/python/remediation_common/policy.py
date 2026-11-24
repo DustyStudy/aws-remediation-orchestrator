@@ -37,8 +37,8 @@ def validate_policy(item: dict[str, Any]) -> None:
 def _beats(item: dict[str, Any], best: dict[str, Any]) -> bool:
     # Longer match first, then a resource-specific rule, then the lower
     # match_id, so the DynamoDB scan order never decides between two rules.
-    def rank(i: dict[str, Any]) -> tuple[int, bool]:
-        return (len(i.get("match_value", "")), bool(i.get("resource_type")))
+    def rank(i: dict[str, Any]) -> tuple[int, bool, bool]:
+        return (len(i.get("match_value", "")), bool(i.get("resource_type")), bool(i.get("product")))
 
     if rank(item) != rank(best):
         return rank(item) > rank(best)
@@ -51,7 +51,8 @@ def select_policy(items: list[dict[str, Any]], normalized: dict[str, Any]) -> di
     Matching is prefix-based on ``type_prefix`` or ``generator_id``, and
     exact on ``vulnerability_id`` (CVE-2026-1096 is a prefix of
     CVE-2026-109618). An item with a ``resource_type`` matches only
-    findings about that ASFF resource type. When multiple items match, the
+    findings about that ASFF resource type, and one with a ``product``
+    (such as ``aws/guardduty``) only findings that product imported. When multiple items match, the
     one with the longest ``match_value`` wins (most specific rule beats a
     broader one covering the same finding). Falls back to the ``default``
     item, which every deployment must seed (Terraform does this - see
@@ -70,6 +71,9 @@ def select_policy(items: list[dict[str, Any]], normalized: dict[str, Any]) -> di
             continue
         resource_type = item.get("resource_type")
         if resource_type and resource_type != normalized.get("resource_type"):
+            continue
+        product = item.get("product")
+        if product and product != normalized.get("product"):
             continue
         if best is None or _beats(item, best):
             best = item

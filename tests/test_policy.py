@@ -132,3 +132,35 @@ def test_select_policy_breaks_a_full_tie_by_the_lower_match_id(order):
     finding = {"type_prefix": "Software and Configuration Checks/S3/Encryption"}
     registry = [DEFAULT_ITEM, first, second][::order]
     assert policy.select_policy(registry, finding)["match_id"] == "a-s3"
+
+
+def _product_rule(**overrides):
+    rule = {
+        "match_id": "guardduty-creds",
+        "match_field": "type_prefix",
+        "match_value": "TTPs/UnauthorizedAccess",
+        "mode": "approval_required",
+        "action_document": "DisableCompromisedCredentials",
+        "product": "aws/guardduty",
+    }
+    rule.update(overrides)
+    return rule
+
+
+PRODUCT_DEFAULT = {"match_id": "default", "match_field": "type_prefix", "match_value": "", "mode": "dry_run"}
+
+
+def test_product_rule_matches_the_real_detector():
+    finding = {"type_prefix": "TTPs/UnauthorizedAccess:IAMUser", "product": "aws/guardduty"}
+    assert policy.select_policy([_product_rule(), PRODUCT_DEFAULT], finding)["match_id"] == "guardduty-creds"
+
+
+def test_product_rule_ignores_a_self_imported_lookalike():
+    finding = {"type_prefix": "TTPs/UnauthorizedAccess:IAMUser", "product": "111111111111/default"}
+    assert policy.select_policy([_product_rule(), PRODUCT_DEFAULT], finding)["match_id"] == "default"
+
+
+def test_product_rule_beats_an_equal_rule_without_product():
+    finding = {"type_prefix": "TTPs/UnauthorizedAccess:IAMUser", "product": "aws/guardduty"}
+    loose = _product_rule(match_id="a-loose", product="")
+    assert policy.select_policy([loose, _product_rule()], finding)["match_id"] == "guardduty-creds"
