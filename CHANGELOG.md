@@ -59,6 +59,9 @@ follow [Semantic Versioning](https://semver.org/).
 ### Maintenance
 - Share eight identical Lambda trust policies without moving resources.
 - Add Python regressions and mocked Terraform workflow tests.
+- Live run 5: the guardrail recheck after approval, the `product` filter
+  and Bedrock API key deactivation, on the release candidate
+  (`docs/proof/run-5.json`).
 - Live run of the approval flow, delivery recovery and a batch
   (`docs/CASE-STUDY.md`, run 4 in `docs/PROOF.md`).
 - `live_test_playbooks.py deny` submits an IAM-signed POST.
