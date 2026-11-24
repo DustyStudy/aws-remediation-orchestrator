@@ -2,13 +2,17 @@
 
 > Runs 1 to 3 predate the IAM-authenticated POST approval flow and batch Map
 > processing; the email clicks they describe refer to that older version.
-> Runs 4 to 6 cover the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
+> Runs 4 to 7 cover the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
 > submissions and upgrades.
 
-Six live runs against real AWS accounts, each checked against AWS's own
+Seven live runs against real AWS accounts, each checked against AWS's own
 records (Step Functions history, DynamoDB, SSM Automation, CloudTrail)
 rather than only the tool's output. Account IDs are masked.
 
+- [Run 7 (2026-11-24)](#run-7-2026-11-24-a-finding-burst-through-lambda-throttling):
+  the 2.0.1 release. A burst of 500 findings against a Lambda concurrency
+  limit of 10 was throttled 2,155 times, and every execution still
+  succeeded, with one ledger item per finding.
 - [Run 6 (2026-11-24)](#run-6-2026-11-24-inspector-cve-routing-and-failure-alarms):
   the released 2.0.0. A real Amazon Inspector CVE finding matched a CVE
   rule and, once approved, isolated the instance. The aborted and failed
@@ -35,6 +39,42 @@ rather than only the tool's output. Account IDs are masked.
 - [Run 1 (2026-09-22)](#run-1-2026-09-22-single-account-pipeline-and-approval):
   one account. The finding pipeline, the policy fallback and the
   approval gate with a real email click.
+
+## Run 7 (2026-11-24): a finding burst through Lambda throttling
+
+The same `examples/org-mode` hub and two member accounts, in `us-east-1`, at
+the 2.0.1 release `18f7e74` (142 resources). Everything was destroyed
+afterwards. All evidence is in [`proof/run-7.json`](proof/run-7.json).
+
+### What was tested
+
+| | |
+|---|---|
+| **Policies** | Run 6's seed, plus `burst-test`: `generator_id` `live-test/burst`, `dry_run`, `max_actions_per_hour = 100000`, so the rate limit and circuit breaker could not hide a throttling failure |
+| **Quota** | The hub account's Lambda concurrency limit is 10, the limit that broke run 6's Inspector burst |
+| **Findings** | 500 synthetic findings imported in the hub with `BatchImportFindings`, 5 calls of 100 back to back, severity `LOW`, each with its own `Id` and an `Other` resource |
+
+### Claims and evidence
+
+| # | Claim | Result | Evidence |
+|---|---|---|---|
+| 1 | A burst against a low concurrency limit is throttled | **Proven** | Lambda `Throttles` over the window: 2,155 in total (`normalize-finding` 766, `lookup-policy` 526, `check-guardrails` 458, `record-ledger` 405) |
+| 2 | Throttled findings are retried, not lost | **Proven** | 500 executions started and 500 `SUCCEEDED`, 0 failed, 0 with `Lambda.TooManyRequestsException`. 82 seconds from the first import to the last execution finishing |
+| 3 | Every finding is evaluated once | **Proven** | 500 ledger items with `policy_id` `burst-test`, one per imported finding `Id`, all `dry_run` |
+| 4 | A survived burst does not raise the failure alarm | **Proven** | The `ExecutionsFailed` metric was 0 and the alarm only moved from `INSUFFICIENT_DATA` to `OK` |
+
+### What this run does not prove
+
+The burst was synthetic and `dry_run`, so no playbook ran. Run 6's burst
+was about 3,000 findings; 500 already produced 2,155 throttles and the
+retries absorbed them, but a far larger or longer burst can still exhaust
+the 12 attempts. There is still no cap on concurrent executions.
+
+### What it left behind
+
+The approval signing secret is in its Secrets Manager recovery window, as
+after runs 5 and 6. The 500 findings were archived (`RESOLVED`). No other
+resource with the run's names or tags is left in the three accounts.
 
 ## Run 6 (2026-11-24): Inspector CVE routing and failure alarms
 

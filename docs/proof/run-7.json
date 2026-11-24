@@ -1,0 +1,91 @@
+{
+  "run_id": "20261124T170139",
+  "date": "2026-11-24",
+  "revision": "18f7e74",
+  "branch": "main (v2.0.1)",
+  "deployed_resources": 142,
+  "region": "us-east-1",
+  "partition": "aws",
+  "accounts": {
+    "hub": "<hub>",
+    "member-a": "<member-a>",
+    "member-b": "<member-b>"
+  },
+  "setup": {
+    "lambda_concurrency_quota_hub": {
+      "ConcurrentExecutions": 10,
+      "UnreservedConcurrentExecutions": 10
+    },
+    "variables": "run 6's, plus the burst-test item",
+    "policy_changes_from_run_6": {
+      "burst-test": {
+        "match_field": "generator_id",
+        "match_value": "live-test/burst",
+        "mode": "dry_run",
+        "max_actions_per_hour": 100000,
+        "why": "so the rate limit and the circuit breaker could not confound the throttling result"
+      }
+    },
+    "burst": "500 findings imported in the hub with BatchImportFindings, 5 calls of 100 back to back, under the hub's default ProductArn, GeneratorId live-test/burst, severity LOW, Resources [{Type: Other, Id: live-test-burst-<n>}], unique Ids live-test/20261124T170139/burst-<n>"
+  },
+  "results": {
+    "G_burst_survives_throttling": {
+      "result": "pass",
+      "findings_imported": 500,
+      "first_import": "2026-11-24T17:01:39.968509+00:00",
+      "last_import_call_returned": "2026-11-24T17:01:41.800105+00:00",
+      "last_execution_stopped": "2026-11-24T17:03:01.825000+00:00",
+      "seconds_first_import_to_last_execution_stop": 82,
+      "executions_started": 500,
+      "execution_statuses": {
+        "SUCCEEDED": 500
+      },
+      "failures": [],
+      "failures_too_many_requests": 0,
+      "lambda_throttles": {
+        "remediation-orchestrator-export-evidence": 0,
+        "remediation-orchestrator-normalize-finding": 766,
+        "remediation-orchestrator-request-approval": 0,
+        "remediation-orchestrator-lookup-policy": 526,
+        "remediation-orchestrator-execute-remediation": 0,
+        "remediation-orchestrator-approval-callback": 0,
+        "remediation-orchestrator-record-ledger": 405,
+        "remediation-orchestrator-check-guardrails": 458
+      },
+      "lambda_throttles_total": 2155,
+      "lambda_invocations": {
+        "remediation-orchestrator-export-evidence": 0,
+        "remediation-orchestrator-normalize-finding": 500,
+        "remediation-orchestrator-request-approval": 0,
+        "remediation-orchestrator-lookup-policy": 499,
+        "remediation-orchestrator-execute-remediation": 0,
+        "remediation-orchestrator-approval-callback": 0,
+        "remediation-orchestrator-record-ledger": 500,
+        "remediation-orchestrator-check-guardrails": 500
+      },
+      "states_executions_failed_metric": 0,
+      "alarms_now": {
+        "ExecutionsAborted": "OK",
+        "ExecutionsFailed": "OK",
+        "ExecutionsTimedOut": "OK"
+      },
+      "executions_failed_alarm_transitions": [
+        "Alarm updated from INSUFFICIENT_DATA to OK"
+      ],
+      "ledger_items_burst_test": 500,
+      "ledger_distinct_findings": 500,
+      "ledger_items_matching_imported_ids": 500,
+      "ledger_outcomes": {
+        "dry_run": 500
+      },
+      "pass_criteria": "throttling occurred, 0 executions failed, 500 ledger items, one per finding",
+      "circuit_breaker": "not read (the value is treated as a stored parameter); no ledger item was blocked by the rate limit, so the breaker had no trigger, and destroy removed the parameter"
+    }
+  },
+  "teardown": [
+    "500 imported findings set to RESOLVED with BatchUpdateFindings (500 processed, 0 unprocessed)",
+    "terraform destroy from a saved plan: 142 destroyed",
+    "no SQS queue or subscription was created for this run",
+    "leftover scan (name prefixes remediation-orchestrator, orch-live-test, aro-run, and the project tags) across IAM, Lambda, Step Functions, DynamoDB, S3, SNS, SQS, EventBridge, SSM documents and parameters, log groups, alarms, API Gateway, KMS aliases and Secrets Manager: member-a none, member-b none, hub only the approval signing secret, scheduled for deletion 2026-11-24T17:05:49Z (recovery window)"
+  ]
+}
