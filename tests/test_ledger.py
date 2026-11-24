@@ -150,3 +150,17 @@ def test_build_evidence_document_controls_deduplicated_and_sorted():
         period_end="2026-09-22T00:00:00+00:00",
     )
     assert document["controls"]["nist_800_53"] == ["AC-3", "SC-28"]
+
+
+def test_build_evidence_document_counts_timeouts_as_unremediated():
+    document = ledger.build_evidence_document(
+        account_id="123456789012",
+        region="us-east-1",
+        ledger_items=[_item("executed"), _item("timed_out")],
+        period_start="2026-09-21T00:00:00+00:00",
+        period_end="2026-09-22T00:00:00+00:00",
+    )
+    assert document["data"]["timed_out"] == 1
+    assert document["status"] == "fail"
+    assert "1 timed out" in document["summary"]
+    assert [f["message"].split(":")[0] for f in document["findings"]] == ["executed", "timed_out"]

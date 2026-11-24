@@ -79,7 +79,7 @@ to a playbook owned by another deployment via
 | **Guardrails** | Org-wide circuit breaker (one SSM parameter), per-policy hourly rate limit with auto-trip on a detector storm, and a generic `do-not-remediate` resource tag denylist (Resource Groups Tagging API - works across resource types with no per-service code). |
 | **Approval flow** | `approval_required` policies pause the state machine (`waitForTaskToken`) and email signed review links; decisions require an IAM-authenticated POST; a timeout with no response is treated as a deny. |
 | **Remediation execution** | Starts the policy's SSM Automation document and polls it to completion. |
-| **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, or failed - with the guardrail result and NIST control mapping that produced it. |
+| **Audit ledger** (DynamoDB) | One record per execution outcome - skipped, blocked, denied, dry-run, executed, failed, or timed out - with the guardrail result and NIST control mapping that produced it. |
 | **Evidence export** (S3, scheduled) | Rolls the ledger up into [`grc-evidence-automation`](https://github.com/DustyStudy/grc-evidence-automation)-shaped JSON documents. See [`docs/EVIDENCE_SCHEMA.md`](docs/EVIDENCE_SCHEMA.md). |
 | **Six owned playbooks** | See [Playbooks](#playbooks). |
 | **Org mode (optional)** | `org_member_account_ids` turns one deployment in the Security Hub delegated administrator account into the orchestrator for the organization: a playbook runs in the member account that owns the resource, through roles created there by [`terraform/modules/playbook-roles`](terraform/modules/playbook-roles). See [`docs/ORG_MODE.md`](docs/ORG_MODE.md). |

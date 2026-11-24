@@ -74,8 +74,10 @@ afterwards. All evidence is in [`proof/run-8.json`](proof/run-8.json).
 - **A timed-out execution leaves no ledger record.** Step Functions stops
   the execution without running a catch state, so the finding has no
   ledger item, and its pending approval stays unconsumed. The alarm and
-  the execution history are the only trace. The alarm's description says
-  to inspect the execution history and reconcile the ledger.
+  the execution history are the only trace. Fixed after the run (see
+  CHANGELOG `[Unreleased]`): a `record_timeout` function now writes a
+  `timed_out` ledger item for each such finding. That fix has not been run
+  live.
 
 ### What this run does not prove
 

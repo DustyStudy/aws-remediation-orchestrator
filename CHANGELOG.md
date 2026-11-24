@@ -6,6 +6,18 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- A timed-out execution no longer leaves its findings out of the audit
+  ledger. Step Functions stops a timed-out execution without running a
+  catch state, so a finding still waiting (usually for approval) had no
+  ledger item; live run 8 showed this. A new `record_timeout` function,
+  invoked by EventBridge when an execution times out, writes a `timed_out`
+  item for each finding of the execution that has no item from the
+  execution's lifetime. The write is conditional, so a redelivered event
+  writes nothing twice, and a failed recording goes to the notifications
+  topic. The evidence export counts `timed_out` items and marks the period
+  `fail`, like `failed` ones.
+
 ### Documentation
 - Live run 8 evidence: the 2.1.0 execution time limit stops an execution
   waiting for approval, and the `ExecutionsTimedOut` alarm notifies
