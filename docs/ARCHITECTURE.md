@@ -37,6 +37,16 @@ waiting for approval. Each finding follows the same policy, guardrail and
 ledger paths. Policy lookup, guardrail evaluation and approval-request errors
 are recorded as failed decisions. Playbook errors have their own failure path.
 
+Every Lambda task retries throttling (`Lambda.TooManyRequestsException`) for
+several minutes, with jittered exponential backoff, before a finding takes a
+failure path. A detector burst starts one execution per finding, and an
+account with a low concurrency quota throttles them; run 6 lost most of a
+3,000-finding Inspector burst to three quick retries. A sustained burst longer
+than the retry window still fails visibly, through the workflow alarms. A
+burst that matches one policy also counts against that policy's rate limit and
+can trip the circuit breaker, by design. Raise the Lambda concurrency quota
+where Inspector or another detector can produce thousands of findings at once.
+
 Ledger calls retry with the state-entry timestamp as their stable record key.
 This prevents one state's delivery retries from creating fresh rows. Notifications
 can still be duplicated. Repeated events are separate executions; there is no

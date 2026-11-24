@@ -79,6 +79,7 @@ resource "aws_lambda_function" "request_approval" {
       NOTIFICATION_TOPIC_ARN       = aws_sns_topic.notifications.arn
       APPROVAL_BASE_URL            = "${trimsuffix(aws_apigatewayv2_stage.approvals.invoke_url, "/")}/decision"
       SIGNING_SECRET_ARN           = aws_secretsmanager_secret.approval_signing_secret.arn
+      APPROVAL_TIMEOUT_SECONDS     = tostring(var.approval_timeout_seconds)
     }
   }
 

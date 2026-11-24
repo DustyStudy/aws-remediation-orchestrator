@@ -76,6 +76,20 @@ run "workflow_contract" {
     ]) == 2
     error_message = "Only the auto path and the post-approval recheck may lead to remediation."
   }
+  assert {
+    condition = alltrue(concat(
+      [for state in [jsondecode(aws_sfn_state_machine.orchestrator.definition).States.NormalizeFinding] :
+      state.Retry[0].ErrorEquals == ["Lambda.TooManyRequestsException"] && state.Retry[0].MaxAttempts >= 10],
+      [for name, state in jsondecode(aws_sfn_state_machine.orchestrator.definition).States.ProcessFindings.ItemProcessor.States :
+        state.Retry[0].ErrorEquals == ["Lambda.TooManyRequestsException"] && state.Retry[0].MaxAttempts >= 10 && state.Retry[0].JitterStrategy == "FULL"
+      if state.Type == "Task"]
+    ))
+    error_message = "Every Lambda task must retry throttling first, for several minutes with jitter, so a finding burst is not dropped."
+  }
+  assert {
+    condition     = aws_lambda_function.request_approval.environment[0].variables.APPROVAL_TIMEOUT_SECONDS == "86400"
+    error_message = "The approval message must state the configured timeout."
+  }
 }
 
 run "approval_timeout_cannot_outlive_the_link" {

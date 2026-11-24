@@ -50,3 +50,23 @@ def test_approval_message_tolerates_a_finding_without_a_source(load_module):
     module.handler({"finding": finding, "policy": POLICY, "task_token": "tok"}, None)
 
     assert "Source: unknown" in module._sns.publish.call_args.kwargs["Message"]
+
+
+def test_approval_message_states_the_configured_timeout(load_module, monkeypatch):
+    monkeypatch.setenv("APPROVAL_TIMEOUT_SECONDS", "600")
+    module = _handler(load_module)
+
+    module.handler({"finding": FINDING, "policy": POLICY, "task_token": "tok"}, None)
+
+    message = module._sns.publish.call_args.kwargs["Message"]
+    assert "expires in 10 minutes" in message
+    assert "24 hours" not in message
+
+
+def test_default_timeout_reads_as_24_hours(load_module):
+    module = _handler(load_module)
+
+    assert module._duration(86400) == "24 hours"
+    assert module._duration(3600) == "1 hour"
+    assert module._duration(90) == "1 minute"
+    assert module._duration(5400) == "90 minutes"

@@ -6,6 +6,18 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- A burst of findings no longer drops most of them when the account's Lambda
+  concurrency quota is low. In live run 6, about 3,000 Amazon Inspector
+  findings on one instance arrived within minutes; with a quota of 10, about
+  1,700 executions failed after three quick throttling retries. Every Lambda
+  task, including the approval request, now retries
+  `Lambda.TooManyRequestsException` up to 12 times with exponential backoff
+  capped at 60 seconds and full jitter. A throttled invocation never ran, so
+  the retry cannot repeat an action.
+- Approval messages state the configured `approval_timeout_seconds` instead
+  of always saying "24 hours".
+
 ## [2.0.0] - 2026-11-24
 
 ### Fixed
