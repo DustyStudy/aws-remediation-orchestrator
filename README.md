@@ -180,7 +180,7 @@ the call is made:
 | How DynamoDB parses an expression | `consumed` is a reserved word, so the approval callback's update raised `ValidationException` instead of the conditional-check error the handler caught | `ExpressionAttributeNames` in both expressions |
 | Account quotas | A new account's Lambda concurrency limit can be 10, below the reserved concurrency the functions asked for | `enable_lambda_reserved_concurrency` |
 
-Seven runs so far. The first, in one account, carried a real finding through a
+Eight runs so far. The first, in one account, carried a real finding through a
 real human deny click. The second ran org mode across four accounts:
 playbooks remediated real buckets, a security group and a role in three
 accounts, and the rate limit, circuit breaker, tag denylist and evidence
@@ -204,6 +204,10 @@ the encrypted notifications topic.
 Run 7 (2026-11-24) tested the 2.0.1 release, `18f7e74`. A burst of 500
 findings against a Lambda concurrency limit of 10 was throttled 2,155 times,
 and all 500 executions still succeeded, with one ledger item per finding.
+
+Run 8 (2026-11-24) tested the 2.1.0 release, `f28e775`. An execution still
+waiting for approval at its time limit was stopped without remediating, and
+the `ExecutionsTimedOut` alarm notification arrived.
 
 ## Repository layout
 

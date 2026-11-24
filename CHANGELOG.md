@@ -6,6 +6,11 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+- Live run 8 evidence: the 2.1.0 execution time limit stops an execution
+  waiting for approval, and the `ExecutionsTimedOut` alarm notifies
+  (`docs/PROOF.md`, `docs/proof/run-8.json`).
+
 ## [2.1.0] - 2026-11-24
 
 ### Added

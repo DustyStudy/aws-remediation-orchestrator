@@ -2,13 +2,17 @@
 
 > Runs 1 to 3 predate the IAM-authenticated POST approval flow and batch Map
 > processing; the email clicks they describe refer to that older version.
-> Runs 4 to 7 cover the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
+> Runs 4 to 8 cover the current flow. Use [OPERATIONS.md](OPERATIONS.md) for
 > submissions and upgrades.
 
-Seven live runs against real AWS accounts, each checked against AWS's own
+Eight live runs against real AWS accounts, each checked against AWS's own
 records (Step Functions history, DynamoDB, SSM Automation, CloudTrail)
 rather than only the tool's output. Account IDs are masked.
 
+- [Run 8 (2026-11-24)](#run-8-2026-11-24-the-overall-execution-time-limit):
+  the 2.1.0 release. An execution still waiting for approval at its time
+  limit was stopped as `TIMED_OUT` without remediating, and the
+  `ExecutionsTimedOut` alarm notification arrived 34 seconds later.
 - [Run 7 (2026-11-24)](#run-7-2026-11-24-a-finding-burst-through-lambda-throttling):
   the 2.0.1 release. A burst of 500 findings against a Lambda concurrency
   limit of 10 was throttled 2,155 times, and every execution still
@@ -39,6 +43,53 @@ rather than only the tool's output. Account IDs are masked.
 - [Run 1 (2026-09-22)](#run-1-2026-09-22-single-account-pipeline-and-approval):
   one account. The finding pipeline, the policy fallback and the
   approval gate with a real email click.
+
+## Run 8 (2026-11-24): the overall execution time limit
+
+The same `examples/org-mode` hub and two member accounts, in `us-east-1`, at
+the 2.1.0 release `f28e775` (140 resources). Everything was destroyed
+afterwards. All evidence is in [`proof/run-8.json`](proof/run-8.json).
+
+### What was tested
+
+| | |
+|---|---|
+| **Variables** | The example seed, `approval_timeout_seconds = 600`, and no `execution_timeout_seconds`, so the default applies |
+| **Shortened limit** | The module refuses a limit under `approval_timeout_seconds` plus one hour. To avoid an hour-long wait, the deployed state machine's top-level `TimeoutSeconds` was changed from 7,800 to 120 with `update-state-machine`. That was the only change to the definition, and it was made on the sandbox deployment only |
+| **Finding** | One approval-required finding on a test role in member-a, which nobody decided |
+| **Alarms** | An SQS queue subscribed to the KMS-encrypted notifications topic |
+
+### Claims and evidence
+
+| # | Claim | Result | Evidence |
+|---|---|---|---|
+| 1 | The default limit is deployed | **Proven** | `describe-state-machine`: top-level `TimeoutSeconds` 7,800 (600 + 7,200). The approval wait has `TimeoutSeconds` 600 |
+| 2 | An execution past its limit is stopped, even while it waits for approval | **Proven** | `TIMED_OUT` exactly 120.0 seconds after it started. The last events are `RequestApproval` entered, `TaskSubmitted`, then `ExecutionTimedOut` |
+| 3 | A timed-out execution remediates nothing | **Proven** | The member-a role kept no inline or attached policies, and no SSM Automation ran in member-a |
+| 4 | `ExecutionsTimedOut` notifies | **Proven** | The alarm went from `OK` to `ALARM` 34 seconds after the timeout, and its notification arrived in the queue |
+| 5 | The approval email states the real timeout (2.0.1) | **Proven** | "This request expires in 10 minutes" for `approval_timeout_seconds = 600` |
+
+### What running it for real found
+
+- **A timed-out execution leaves no ledger record.** Step Functions stops
+  the execution without running a catch state, so the finding has no
+  ledger item, and its pending approval stays unconsumed. The alarm and
+  the execution history are the only trace. The alarm's description says
+  to inspect the execution history and reconcile the ledger.
+
+### What this run does not prove
+
+The limit was shortened by hand, so the run does not show the default
+7,800-second limit expiring. It shows that Step Functions enforces
+whatever top-level limit the definition carries, and run 8's first check
+shows that the module deploys the default. A batch with more than five
+findings waiting for approval at once was not tested.
+
+### What it left behind
+
+The approval signing secret is in its Secrets Manager recovery window, as
+after runs 5 to 7. No other resource with the run's names or tags is left
+in the three accounts.
 
 ## Run 7 (2026-11-24): a finding burst through Lambda throttling
 
@@ -99,7 +150,7 @@ afterwards. All evidence is in [`proof/run-6.json`](proof/run-6.json).
 | 2 | An approved CVE rule isolates the instance | **Proven** | Approve returned HTTP 200 and the ledger is `executed`. `IsolateCompromisedInstance` succeeded in member-a, run by the member execution role. The instance's interface is on the isolation group (no inbound or outbound rules) and its volume was snapshotted |
 | 3 | `ExecutionsAborted` notifies | **Proven** | The alarm went to ALARM 2 minutes after `StopExecution` and its notification arrived in the queue |
 | 4 | `ExecutionsFailed` notifies | **Proven** | It fired twice: once in the Inspector flood below, and again 1 minute after the controlled failure. Both notifications arrived in the queue |
-| 5 | `ExecutionsTimedOut` notifies | Not tested | The state machine sets no execution timeout, so it cannot fire |
+| 5 | `ExecutionsTimedOut` notifies | Not tested | The state machine set no execution timeout, so it could not fire. 2.1.0 added one, and run 8 proved this alarm |
 
 ### What running it for real found
 
