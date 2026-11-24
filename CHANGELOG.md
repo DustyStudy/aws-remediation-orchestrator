@@ -6,6 +6,8 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-24
+
 ### Fixed
 - Normalize every finding in a batch and retain auditable rejected records.
 - Record policy, guardrail and approval-request failures; retry ledger writes
@@ -205,7 +207,8 @@ Found during the real-account run in `docs/PROOF.md`:
 - The KMS key policy did not allow the Step Functions and API Gateway log
   groups, so their creation failed.
 
-[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/releases/tag/v1.0.0

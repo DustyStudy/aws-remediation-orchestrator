@@ -1,4 +1,4 @@
-# Release checklist: next release (proposed 2.0.0)
+# Release checklist: 2.0.0
 
 Baseline: `main` at `72d6d3e`. Release candidate: branch
 `claude/project-thread-aloekb`. Updated 2026-11-24.
