@@ -6,6 +6,8 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-24
+
 ### Fixed
 - A timed-out execution no longer leaves its findings out of the audit
   ledger. Step Functions stops a timed-out execution without running a
@@ -257,7 +259,8 @@ Found during the real-account run in `docs/PROOF.md`:
 - The KMS key policy did not allow the Step Functions and API Gateway log
   groups, so their creation failed.
 
-[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/DustyStudy/aws-remediation-orchestrator/compare/v1.2.0...v2.0.0
