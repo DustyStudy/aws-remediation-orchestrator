@@ -2,14 +2,15 @@
 
 [![Lint and Security Scan](https://github.com/DustyStudy/aws-remediation-orchestrator/actions/workflows/lint-and-scan.yml/badge.svg)](https://github.com/DustyStudy/aws-remediation-orchestrator/actions/workflows/lint-and-scan.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![AWS](https://img.shields.io/badge/AWS-Commercial%20%2B%20GovCloud-orange)](#)
+[![AWS](https://img.shields.io/badge/AWS-Commercial%20%2B%20GovCloud-orange)](docs/PROOF.md)
 
 An event-driven engine that turns AWS Security Hub findings into
 **governed, auditable** remediation - policy-driven routing, blast-radius
 guardrails, a human approval gate for disruptive actions, and a
 compliance-evidence export - built on Step Functions, Lambda, and SSM
-Automation. Every ARN is partition-aware (`data.aws_partition`), so it
-runs in both AWS commercial and GovCloud.
+Automation. Terraform builds ARNs for the selected AWS partition, including GovCloud. The [live deployment record](docs/PROOF.md) covers commercial AWS.
+
+[Follow one finding from detection to evidence](docs/CASE-STUDY.md).
 
 **At a glance**
 
@@ -17,7 +18,7 @@ runs in both AWS commercial and GovCloud.
   than the finding. Teams need a human in the loop for disruptive fixes.
 - **Approach:** one pipeline with a policy registry, rate limits, a circuit
   breaker, an email approval gate and an audit ledger.
-- **Result:** [run end to end in real AWS accounts, four times](docs/PROOF.md):
+- **Result:** [end-to-end runs in real AWS accounts](docs/PROOF.md):
   once in a single account, then across the accounts of an AWS
   organization, where all six playbooks changed real resources.
   The runs found defects that `terraform validate`, tflint, Checkov, ruff
