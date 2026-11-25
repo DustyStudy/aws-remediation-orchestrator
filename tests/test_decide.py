@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,3 +32,30 @@ def test_submission_uses_signed_post_and_session_credentials(load_module):
     assert kwargs["headers"]["X-Amz-Security-Token"] == "session"
     assert "us-gov-west-1/execute-api/aws4_request" in kwargs["headers"]["Authorization"]
     assert status == 200 and "approve" in body
+
+
+@pytest.mark.parametrize("status, exit_code, output", [
+    (200, None, "Decision delivered."),
+    (503, "Approval API returned HTTP 503", ""),
+])
+def test_cli_reports_status_without_printing_response_body(
+    load_module, monkeypatch, capsys, status, exit_code, output
+):
+    module = load_module("scripts/decide.py")
+    monkeypatch.setattr(sys, "argv", ["decide.py"])
+    monkeypatch.setattr(
+        module.getpass, "getpass",
+        lambda _: "https://abc.execute-api.us-east-1.amazonaws.com/decision?approval_id=a&decision=approve&sig=s",
+    )
+    monkeypatch.setattr("builtins.input", lambda _: "approve")
+    session = MagicMock()
+    monkeypatch.setattr(module.boto3, "Session", lambda **_: session)
+    monkeypatch.setattr(module, "submit", lambda *_: (status, "private response data"))
+
+    if exit_code:
+        with pytest.raises(SystemExit, match=exit_code) as exc:
+            module.main()
+        assert "private response data" not in str(exc.value)
+    else:
+        module.main()
+    assert capsys.readouterr().out.strip() == output
