@@ -48,9 +48,10 @@ def main():
     credentials = boto3.Session(profile_name=args.profile).get_credentials()
     if credentials is None:
         raise SystemExit("Sign in to your approver profile first (aws sso login --profile ...).")
-    status, body = submit(url, credentials.get_frozen_credentials())
-    print(body)
-    raise SystemExit(0 if status == 200 else 1)
+    status, _ = submit(url, credentials.get_frozen_credentials())
+    if status != 200:
+        raise SystemExit(f"Approval API returned HTTP {status}. See the recovery guide in docs/OPERATIONS.md.")
+    print("Decision delivered.")
 
 
 if __name__ == "__main__":
